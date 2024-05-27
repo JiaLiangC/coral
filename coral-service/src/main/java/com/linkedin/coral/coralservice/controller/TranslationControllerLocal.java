@@ -25,7 +25,7 @@ import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
  */
 @Service
 @Profile("localMetastore")
-@CrossOrigin(origins = CORAL_SERVICE_FRONTEND_URL)
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class TranslationControllerLocal extends TranslationController {
 
   @Override

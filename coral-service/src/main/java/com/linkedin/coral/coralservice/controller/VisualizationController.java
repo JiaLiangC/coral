@@ -36,7 +36,7 @@ import static com.linkedin.coral.coralservice.utils.VisualizationUtils.*;
 
 @RestController
 @RequestMapping("/api/visualizations")
-@CrossOrigin(origins = CORAL_SERVICE_FRONTEND_URL)
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class VisualizationController {
   private File imageDir = getImageDir();
   private VisualizationUtils visualizationUtils = new VisualizationUtils();

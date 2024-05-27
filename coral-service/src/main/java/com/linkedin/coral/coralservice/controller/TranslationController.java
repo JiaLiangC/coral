@@ -40,7 +40,7 @@ import static com.linkedin.coral.coralservice.utils.TranslationUtils.*;
 @RestController
 @Service
 @Profile({ "remoteMetastore", "default" })
-@CrossOrigin(origins = CORAL_SERVICE_FRONTEND_URL)
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class TranslationController implements ApplicationListener<ContextRefreshedEvent> {
   @Value("${hivePropsLocation:}")
   private String hivePropsLocation;
