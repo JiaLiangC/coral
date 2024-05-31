@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <!-- This module was also published with a richer model, Gradle metadata,  -->
+    <!-- which should be used instead. Do not delete the following line which  -->
+    <!-- is to indicate to Gradle or any Gradle module metadata file consumer  -->
+    <!-- that they should prefer consuming it instead. -->
+    <!-- do_not_remove: published-with-gradle-metadata -->
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.linkedin.coral</groupId>
+        <artifactId>coral-parent</artifactId>
+        <version>2.2.34</version>
+    </parent>
+    <artifactId>coral-schema</artifactId>
+    <version>2.2.34</version>
+    <name>coral-schema</name>
+    <description>A library for analyzing, processing, and rewriting views defined in the Hive Metastore, and sharing them across multiple execution engines</description>
+    <url>https://github.com/linkedin/coral</url>
+    <licenses>
+        <license>
+            <name>The MIT License</name>
+            <url>https://github.com/linkedin/coral/blob/master/LICENSE</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <scm>
+        <url>https://github.com/linkedin/coral.git</url>
+    </scm>
+    <issueManagement>
+        <system>GitHub issues</system>
+        <url>https://github.com/linkedin/coral/issues</url>
+    </issueManagement>
+    <ciManagement>
+        <system>GitHub Actions</system>
+        <url>https://github.com/linkedin/coral/actions</url>
+    </ciManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.linkedin.coral</groupId>
+            <artifactId>coral-common</artifactId>
+            <version>2.2.34</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.linkedin.coral</groupId>
+            <artifactId>coral-hive</artifactId>
+            <version>2.2.34</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>slf4j-log4j12</artifactId>
+                    <groupId>*</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>*</artifactId>
+                    <groupId>javax.servlet</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- Avro Utilities -->
+
+        <dependency>
+            <groupId>com.linkedin.avroutil1</groupId>
+            <artifactId>helper-all</artifactId>
+            <version>0.2.117</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>7.5</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.linkedin.calcite</groupId>
+            <artifactId>calcite-core</artifactId>
+            <version>1.21.0.262</version>
+            <classifier>shaded</classifier>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-exec</artifactId>
+            <version>1.2.2</version>
+            <classifier>core</classifier>
+            <scope>runtime</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>slf4j-log4j12</artifactId>
+                    <groupId>*</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>*</artifactId>
+                    <groupId>javax.servlet</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>calcite-core</artifactId>
+                    <groupId>org.apache.calcite</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-core</artifactId>
+            <version>2.7.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-common</artifactId>
+            <version>2.7.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.esotericsoftware.kryo</groupId>
+            <artifactId>kryo</artifactId>
+            <version>2.22</version>
+            <scope>runtime</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>slf4j-log4j12</artifactId>
+                    <groupId>*</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>*</artifactId>
+                    <groupId>javax.servlet</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-metastore</artifactId>
+            <version>1.2.2</version>
+            <scope>compile</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>avro-tools</artifactId>
+                    <groupId>org.apache.avro</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>autometrics-reporter</artifactId>
+                    <groupId>com.linkedin.metastore-autometrics</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>metastore-audit-logging</artifactId>
+                    <groupId>com.linkedin.metastore-audit</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.9.0</version>
+            <scope>compile</scope>
+        </dependency>
+
+    </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.avro</groupId>
+                <artifactId>avro</artifactId>
+                <version>1.10.2</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!-- Ensure a consistent version of Apache Avro -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>3.1.2</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>purge-local-repository</goal>
+                            </goals>
+                            <configuration>
+                                <includes>
+                                    <include>org.apache.avro:avro</include>
+                                </includes>
+                                <resolvers>
+                                    <resolver>central</resolver>
+                                </resolvers>
+                                <verbose>true</verbose>
+                                <force>true</force>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>
