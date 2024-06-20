@@ -679,11 +679,14 @@ catch (RecognitionException e) {
 }
 
 // starting rule
+//explainStatement 和 execStatement 作为你的两个备选子规则。
+//语法树的根节点通常（大多数情况下）会是具体匹配的子规则的根节点。也就是说，如果 explainStatement 匹配成功，那么根节点会是 explainStatement 的生成节点
 statement
 	: explainStatement EOF
 	| execStatement EOF
 	;
 
+//AST.1 TOK_EXPLAIN //AST.2 TOK_EXPLAIN_SQ_REWRITE
 explainStatement
 @init { pushMsg("explain statement", state); }
 @after { popMsg(state); }
@@ -693,12 +696,14 @@ explainStatement
         KW_REWRITE queryStatementExpression[true] -> ^(TOK_EXPLAIN_SQ_REWRITE queryStatementExpression))
 	;
 
+//成为上一个的子节点 AST.leafnode of AST.1
 explainOption
 @init { msgs.push("explain option"); }
 @after { msgs.pop(); }
     : KW_EXTENDED|KW_FORMATTED|KW_DEPENDENCY|KW_LOGICAL|KW_AUTHORIZATION
     ;
 
+//AST.3 AST.subnode of  AST.1
 execStatement
 @init { pushMsg("statement", state); }
 @after { popMsg(state); }
@@ -711,6 +716,8 @@ execStatement
     | updateStatement
     ;
 
+
+//AST.4 TOK_LOAD AST.subnode of AST.3
 loadStatement
 @init { pushMsg("load statement", state); }
 @after { popMsg(state); }
@@ -718,6 +725,8 @@ loadStatement
     -> ^(TOK_LOAD $path $tab $islocal? $isoverwrite?)
     ;
 
+
+//AST.5 TOK_REPLICATION
 replicationClause
 @init { pushMsg("replication clause", state); }
 @after { popMsg(state); }
@@ -725,6 +734,9 @@ replicationClause
     -> ^(TOK_REPLICATION $replId $isMetadataOnly?)
     ;
 
+//AST.6 TOK_EXPORT AST.subnode of AST.3
+//Export命令可以导出一张表或分区的数据和元数据信息到一个输出位置，并且导出数据可以被移动到另一个hadoop集群或hive实例，并且可以通过import命令导入数据。
+//export table table_name to '/tmp/bak/20221220/xc_ods/table_name';
 exportStatement
 @init { pushMsg("export statement", state); }
 @after { popMsg(state); }
@@ -735,6 +747,9 @@ exportStatement
     -> ^(TOK_EXPORT $tab $path replicationClause?)
     ;
 
+
+//AST.7 TOK_IMPORT AST.subnode of AST.3
+//import from '/home/hadoop/data'; 通过Import方式可以把数据加载到指定Hive表中。但是这种方法需要先用Export导出后，再将数据导入。
 importStatement
 @init { pushMsg("import statement", state); }
 @after { popMsg(state); }
@@ -745,6 +760,8 @@ importStatement
     -> ^(TOK_IMPORT $path $tab? $ext? tableLocation?)
     ;
 
+
+//AST.8
 ddlStatement
 @init { pushMsg("ddl statement", state); }
 @after { popMsg(state); }
@@ -786,6 +803,7 @@ ddlStatement
     | showCurrentRole
     ;
 
+//AST.9  TOK_IFEXISTS
 ifExists
 @init { pushMsg("if exists clause", state); }
 @after { popMsg(state); }
@@ -793,6 +811,10 @@ ifExists
     -> ^(TOK_IFEXISTS)
     ;
 
+// hive CASCADE的中文翻译为"级联"，顾名思义就是就是与之有联系的。在针对HIVE也就是不仅变更新分区的表结构（metadata），同时也变更旧分区的表结构。
+//在生产环境中,由于用户对HIVE知识了解不深,在针对分区表时对表新增字段,没有使用cascade关键字,那么此时对于历史分区无论是使用insert into还是insert overwrite table 插入数据新增的列显示都是null值
+//ALTER TABLE aiops.par_c  CHANGE COLUMN loc loc2 string CASCADE;
+//AST.10 AST.11 TOK_CASCADE
 restrictOrCascade
 @init { pushMsg("restrict or cascade clause", state); }
 @after { popMsg(state); }
@@ -802,6 +824,7 @@ restrictOrCascade
     -> ^(TOK_CASCADE)
     ;
 
+// create table ifNotExists AST.12 TOK_IFNOTEXISTS
 ifNotExists
 @init { pushMsg("if not exists clause", state); }
 @after { popMsg(state); }
@@ -809,6 +832,8 @@ ifNotExists
     -> ^(TOK_IFNOTEXISTS)
     ;
 
+//HIVE Skewed Table TOK_STOREDASDIRS  AST.13 TOK_STOREDASDIRS
+//CREATE TABLE list_bucket_single (key STRING, value STRING) SKEWED BY (key) ON (1,5,6) [STORED AS DIRECTORIES];
 storedAsDirs
 @init { pushMsg("stored as directories", state); }
 @after { popMsg(state); }
@@ -816,6 +841,7 @@ storedAsDirs
     -> ^(TOK_STOREDASDIRS)
     ;
 
+//  TOK_ORREPLACE  AST.14  CREATE OR REPLACE VIEW
 orReplace
 @init { pushMsg("or replace clause", state); }
 @after { popMsg(state); }
@@ -823,6 +849,8 @@ orReplace
     -> ^(TOK_ORREPLACE)
     ;
 
+
+//  TOK_ORREPLACE  AST.15 TOK_IGNOREPROTECTION ALTER TABLE table_name DROP [IF EXISTS] PARTITION partition_spec IGNORE PROTECTION;
 ignoreProtection
 @init { pushMsg("ignore protection clause", state); }
 @after { popMsg(state); }
@@ -830,6 +858,13 @@ ignoreProtection
         -> ^(TOK_IGNOREPROTECTION)
         ;
 
+/* CREATE [REMOTE] (DATABASE|SCHEMA) [IF NOT EXISTS] database_name
+  *   [COMMENT database_comment]
+  *   [LOCATION hdfs_path]
+  *   [MANAGEDLOCATION hdfs_path]
+  *   [WITH DBPROPERTIES (property_name=property_value, ...)];
+  * AST.16  TOK_CREATEDATABASE
+  */
 createDatabaseStatement
 @init { pushMsg("create database statement", state); }
 @after { popMsg(state); }
@@ -842,6 +877,8 @@ createDatabaseStatement
     -> ^(TOK_CREATEDATABASE $name ifNotExists? dbLocation? databaseComment? $dbprops?)
     ;
 
+
+//AST.17 subnode of AST.16  TOK_DATABASELOCATION
 dbLocation
 @init { pushMsg("database location specification", state); }
 @after { popMsg(state); }
@@ -849,6 +886,7 @@ dbLocation
       KW_LOCATION locn=StringLiteral -> ^(TOK_DATABASELOCATION $locn)
     ;
 
+//AST.18 subnode of AST.16  TOK_DATABASEPROPERTIES
 dbProperties
 @init { pushMsg("dbproperties", state); }
 @after { popMsg(state); }
@@ -856,6 +894,8 @@ dbProperties
       LPAREN dbPropertiesList RPAREN -> ^(TOK_DATABASEPROPERTIES dbPropertiesList)
     ;
 
+
+//AST.19 subnode of AST.16  TOK_DATABASEPROPERTIES
 dbPropertiesList
 @init { pushMsg("database properties list", state); }
 @after { popMsg(state); }
@@ -863,7 +903,7 @@ dbPropertiesList
       keyValueProperty (COMMA keyValueProperty)* -> ^(TOK_DBPROPLIST keyValueProperty+)
     ;
 
-
+//AST.20 TOK_SWITCHDATABASE use db;
 switchDatabaseStatement
 @init { pushMsg("switch database statement", state); }
 @after { popMsg(state); }
@@ -871,6 +911,7 @@ switchDatabaseStatement
     -> ^(TOK_SWITCHDATABASE identifier)
     ;
 
+//AST.21 TOK_DROPDATABASE  drop database
 dropDatabaseStatement
 @init { pushMsg("drop database statement", state); }
 @after { popMsg(state); }
@@ -878,6 +919,18 @@ dropDatabaseStatement
     -> ^(TOK_DROPDATABASE identifier ifExists? restrictOrCascade?)
     ;
 
+
+/*
+*CREATE TABLE page_view(viewTime INT, userid BIGINT,
+*     page_url STRING, referrer_url STRING,
+*     ip STRING COMMENT 'IP Address of the User')
+* COMMENT 'This is the page view table'
+* PARTITIONED BY(dt STRING, country STRING)
+* ROW FORMAT DELIMITED
+*  FIELDS TERMINATED BY '\001'
+*STORED AS SEQUENCEFILE;
+*/
+//AST.22 TOK_DATABASECOMMENT   subnode of AST.16
 databaseComment
 @init { pushMsg("database's comment", state); }
 @after { popMsg(state); }
@@ -885,6 +938,7 @@ databaseComment
     -> ^(TOK_DATABASECOMMENT $comment)
     ;
 
+//AST.23 TOK_CREATETABLE
 createTableStatement
 @init { pushMsg("create table statement", state); }
 @after { popMsg(state); }
@@ -920,11 +974,31 @@ createTableStatement
         )
     ;
 
+//AST.24 TOK_TRUNCATETABLE TRUNCATE [TABLE] table_name [PARTITION partition_spec];
+//partition_spec:
+// : (partition_column = partition_col_value, partition_column = partition_col_value, ...)
 truncateTableStatement
 @init { pushMsg("truncate table statement", state); }
 @after { popMsg(state); }
     : KW_TRUNCATE KW_TABLE tablePartitionPrefix (KW_COLUMNS LPAREN columnNameList RPAREN)? -> ^(TOK_TRUNCATETABLE tablePartitionPrefix columnNameList?);
 
+
+/*
+*CREATE INDEX index_name
+*   ON TABLE base_table_name (col_name, ...)
+*   AS index_type
+*   [WITH DEFERRED REBUILD]
+*   [IDXPROPERTIES (property_name=property_value, ...)]
+*   [IN TABLE index_table_name]
+*   [
+*      [ ROW FORMAT ...] STORED AS ...
+*      | STORED BY ...
+*   ]
+*   [LOCATION hdfs_path]
+*   [TBLPROPERTIES (...)]
+*   [COMMENT "index comment"];
+*/
+//AST.25 TOK_CREATEINDEX
 createIndexStatement
 @init { pushMsg("create index statement", state);}
 @after {popMsg(state);}
@@ -950,6 +1024,7 @@ createIndexStatement
         indexComment?)
     ;
 
+//AST.26 TOK_INDEXCOMMENT  subnode of AST.25
 indexComment
 @init { pushMsg("comment on an index", state);}
 @after {popMsg(state);}
@@ -957,6 +1032,7 @@ indexComment
                 KW_COMMENT comment=StringLiteral  -> ^(TOK_INDEXCOMMENT $comment)
         ;
 
+//AST.27 TOK_DEFERRED_REBUILDINDEX 用法 WITH DEFERRED REBUILD ;   subnode of AST.25
 autoRebuild
 @init { pushMsg("auto rebuild index", state);}
 @after {popMsg(state);}
@@ -964,6 +1040,7 @@ autoRebuild
     ->^(TOK_DEFERRED_REBUILDINDEX)
     ;
 
+//AST.28 TOK_INDEXCOMMENT
 indexTblName
 @init { pushMsg("index table name", state);}
 @after {popMsg(state);}
@@ -971,6 +1048,7 @@ indexTblName
     ->^(TOK_CREATEINDEX_INDEXTBLNAME $indexTbl)
     ;
 
+//AST.29 subnode of AST.25
 indexPropertiesPrefixed
 @init { pushMsg("table properties with prefix", state); }
 @after { popMsg(state); }
@@ -978,6 +1056,7 @@ indexPropertiesPrefixed
         KW_IDXPROPERTIES! indexProperties
     ;
 
+//AST.30 TOK_INDEXPROPERTIES subnode of AST.25
 indexProperties
 @init { pushMsg("index properties", state); }
 @after { popMsg(state); }
@@ -985,6 +1064,7 @@ indexProperties
       LPAREN indexPropertiesList RPAREN -> ^(TOK_INDEXPROPERTIES indexPropertiesList)
     ;
 
+//AST.31 TOK_INDEXPROPLIST subnode of AST.30
 indexPropertiesList
 @init { pushMsg("index properties list", state); }
 @after { popMsg(state); }
@@ -992,13 +1072,14 @@ indexPropertiesList
       keyValueProperty (COMMA keyValueProperty)* -> ^(TOK_INDEXPROPLIST keyValueProperty+)
     ;
 
+//AST.32 TOK_DROPINDEX  subnode of AST.8 是否是这样的？
 dropIndexStatement
 @init { pushMsg("drop index statement", state);}
 @after {popMsg(state);}
     : KW_DROP KW_INDEX ifExists? indexName=identifier KW_ON tab=tableName
     ->^(TOK_DROPINDEX $indexName $tab ifExists?)
     ;
-
+//AST.33 TOK_DROPTABLE subnode of AST.8 是否是这样的？
 dropTableStatement
 @init { pushMsg("drop statement", state); }
 @after { popMsg(state); }
@@ -1006,6 +1087,10 @@ dropTableStatement
     -> ^(TOK_DROPTABLE tableName ifExists? KW_PURGE? replicationClause?)
     ;
 
+//AST.34 TOK_ALTERTABLE subnode of AST.8 是否是这样的？
+//AST.35 TOK_ALTERVIEW subnode of AST.8 是否是这样的？
+//AST.36 alterIndexStatementSuffix
+//AST.37 alterDatabaseStatementSuffix
 alterStatement
 @init { pushMsg("alter statement", state); }
 @after { popMsg(state); }
@@ -1015,6 +1100,7 @@ alterStatement
     | KW_ALTER (KW_DATABASE|KW_SCHEMA) alterDatabaseStatementSuffix -> alterDatabaseStatementSuffix
     ;
 
+//AST.38 alterDatabaseStatementSuffix
 alterTableStatementSuffix
 @init { pushMsg("alter table statement", state); }
 @after { popMsg(state); }
@@ -1031,6 +1117,8 @@ alterTableStatementSuffix
     | partitionSpec? alterTblPartitionStatementSuffix -> alterTblPartitionStatementSuffix partitionSpec?
     ;
 
+//AST.39 alterTblPartitionStatementSuffix
+//todo 验证这种没有树操作符的语法的根节点是否是自己,并不是，只有树操作符才会构建树
 alterTblPartitionStatementSuffix
 @init {pushMsg("alter table partition statement suffix", state);}
 @after {popMsg(state);}
@@ -1049,6 +1137,7 @@ alterTblPartitionStatementSuffix
   | alterStatementSuffixAddCol
   ;
 
+//AST.40 TOK_ALTERTABLE_PARTCOLTYPE subnode of AST.38
 alterStatementPartitionKeyType
 @init {msgs.push("alter partition key type"); }
 @after {msgs.pop();}
@@ -1056,6 +1145,7 @@ alterStatementPartitionKeyType
 	-> ^(TOK_ALTERTABLE_PARTCOLTYPE columnNameType)
 	;
 
+//AST.41  alterViewStatementSuffix subnode of AST.35
 alterViewStatementSuffix
 @init { pushMsg("alter view statement", state); }
 @after { popMsg(state); }
@@ -1066,6 +1156,7 @@ alterViewStatementSuffix
     | selectStatementWithCTE
     ;
 
+//AST.42 subnode of AST.36 alter table 的片段
 alterIndexStatementSuffix
 @init { pushMsg("alter index statement", state); }
 @after { popMsg(state); }
@@ -1080,6 +1171,7 @@ alterIndexStatementSuffix
     )
     ;
 
+//AST.43  subnode of AST.37
 alterDatabaseStatementSuffix
 @init { pushMsg("alter database statement", state); }
 @after { popMsg(state); }
@@ -1087,6 +1179,8 @@ alterDatabaseStatementSuffix
     | alterDatabaseSuffixSetOwner
     ;
 
+
+//AST.44  TOK_ALTERDATABASE_PROPERTIES subnode of AST.43
 alterDatabaseSuffixProperties
 @init { pushMsg("alter database properties statement", state); }
 @after { popMsg(state); }
@@ -1094,6 +1188,7 @@ alterDatabaseSuffixProperties
     -> ^(TOK_ALTERDATABASE_PROPERTIES $name dbProperties)
     ;
 
+//AST.45 TOK_ALTERDATABASE_OWNER subnode of AST.43
 alterDatabaseSuffixSetOwner
 @init { pushMsg("alter database set owner", state); }
 @after { popMsg(state); }
@@ -1101,6 +1196,9 @@ alterDatabaseSuffixSetOwner
     -> ^(TOK_ALTERDATABASE_OWNER $dbName principalName)
     ;
 
+
+//{ table }?: 这是一个条件检查，如果参数 table 为真则选用第一个构造树（TOK_ALTERTABLE_RENAME tableName），否则选用第二个构造树（TOK_ALTERVIEW_RENAME tableName）
+//AST.46 AST.47 TOK_ALTERTABLE_RENAME subnode of AST.41
 alterStatementSuffixRename[boolean table]
 @init { pushMsg("rename statement", state); }
 @after { popMsg(state); }
@@ -1109,6 +1207,7 @@ alterStatementSuffixRename[boolean table]
     ->            ^(TOK_ALTERVIEW_RENAME tableName)
     ;
 
+//AST.48  AST.49 TOK_ALTERTABLE_ADDCOLS subnode of AST.39
 alterStatementSuffixAddCol
 @init { pushMsg("add column statement", state); }
 @after { popMsg(state); }
@@ -1117,6 +1216,8 @@ alterStatementSuffixAddCol
     ->                 ^(TOK_ALTERTABLE_REPLACECOLS columnNameTypeList restrictOrCascade?)
     ;
 
+
+//AST.50 TOK_ALTERTABLE_RENAMECOL subnode of AST.39
 alterStatementSuffixRenameCol
 @init { pushMsg("rename column name", state); }
 @after { popMsg(state); }
@@ -1124,6 +1225,7 @@ alterStatementSuffixRenameCol
     ->^(TOK_ALTERTABLE_RENAMECOL $oldName $newName colType $comment? alterStatementChangeColPosition? restrictOrCascade?)
     ;
 
+//AST.51 TOK_ALTERTABLE_UPDATECOLSTATS subnode of AST.39
 alterStatementSuffixUpdateStatsCol
 @init { pushMsg("update column statistics", state); }
 @after { popMsg(state); }
@@ -1131,12 +1233,14 @@ alterStatementSuffixUpdateStatsCol
     ->^(TOK_ALTERTABLE_UPDATECOLSTATS $colName tableProperties $comment?)
     ;
 
+//AST.52 AST.53 TOK_ALTERTABLE_CHANGECOL_AFTER_POSITION subnode of AST.50
 alterStatementChangeColPosition
     : first=KW_FIRST|KW_AFTER afterCol=identifier
     ->{$first != null}? ^(TOK_ALTERTABLE_CHANGECOL_AFTER_POSITION )
     -> ^(TOK_ALTERTABLE_CHANGECOL_AFTER_POSITION $afterCol)
     ;
 
+//AST.54 AST.55 TOK_ALTERTABLE_ADDPARTS subnode of AST.30 or 41
 alterStatementSuffixAddPartitions[boolean table]
 @init { pushMsg("add partition statement", state); }
 @after { popMsg(state); }
@@ -1145,10 +1249,12 @@ alterStatementSuffixAddPartitions[boolean table]
     ->            ^(TOK_ALTERVIEW_ADDPARTS ifNotExists? alterStatementSuffixAddPartitionsElement+)
     ;
 
+//AST.56 TOK_ALTERTABLE_ADDPARTS subnode of AST.54
 alterStatementSuffixAddPartitionsElement
     : partitionSpec partitionLocation?
     ;
 
+//AST.57 TOK_ALTERTABLE_TOUCH subnode of AST.38
 alterStatementSuffixTouch
 @init { pushMsg("touch statement", state); }
 @after { popMsg(state); }
@@ -1156,6 +1262,7 @@ alterStatementSuffixTouch
     -> ^(TOK_ALTERTABLE_TOUCH (partitionSpec)*)
     ;
 
+//AST.58 TOK_ALTERTABLE_ARCHIVE subnode of AST.38
 alterStatementSuffixArchive
 @init { pushMsg("archive statement", state); }
 @after { popMsg(state); }
@@ -1163,6 +1270,7 @@ alterStatementSuffixArchive
     -> ^(TOK_ALTERTABLE_ARCHIVE (partitionSpec)*)
     ;
 
+//AST.59 TOK_ALTERTABLE_UNARCHIVE subnode of AST.38
 alterStatementSuffixUnArchive
 @init { pushMsg("unarchive statement", state); }
 @after { popMsg(state); }
@@ -1170,6 +1278,7 @@ alterStatementSuffixUnArchive
     -> ^(TOK_ALTERTABLE_UNARCHIVE (partitionSpec)*)
     ;
 
+//AST.60 TOK_PARTITIONLOCATION subnode of AST.56
 partitionLocation
 @init { pushMsg("partition location", state); }
 @after { popMsg(state); }
@@ -1177,6 +1286,7 @@ partitionLocation
       KW_LOCATION locn=StringLiteral -> ^(TOK_PARTITIONLOCATION $locn)
     ;
 
+//AST.61,62 TOK_ALTERTABLE_DROPPARTS subnode of AST.38
 alterStatementSuffixDropPartitions[boolean table]
 @init { pushMsg("drop partition statement", state); }
 @after { popMsg(state); }
@@ -1185,6 +1295,7 @@ alterStatementSuffixDropPartitions[boolean table]
     ->            ^(TOK_ALTERVIEW_DROPPARTS dropPartitionSpec+ ifExists? ignoreProtection? replicationClause?)
     ;
 
+//AST.63,64 TOK_ALTERTABLE_PROPERTIES subnode of AST.38
 alterStatementSuffixProperties
 @init { pushMsg("alter properties statement", state); }
 @after { popMsg(state); }
@@ -1194,6 +1305,7 @@ alterStatementSuffixProperties
     -> ^(TOK_ALTERTABLE_DROPPROPERTIES tableProperties ifExists?)
     ;
 
+//AST.65,66 TOK_ALTERVIEW_PROPERTIES subnode of AST.41
 alterViewSuffixProperties
 @init { pushMsg("alter view properties statement", state); }
 @after { popMsg(state); }
@@ -1203,6 +1315,7 @@ alterViewSuffixProperties
     -> ^(TOK_ALTERVIEW_DROPPROPERTIES tableProperties ifExists?)
     ;
 
+//AST.68,68 TOK_ALTERTABLE_SERIALIZER subnode of AST.39
 alterStatementSuffixSerdeProperties
 @init { pushMsg("alter serdes statement", state); }
 @after { popMsg(state); }
@@ -1212,6 +1325,7 @@ alterStatementSuffixSerdeProperties
     -> ^(TOK_ALTERTABLE_SERDEPROPERTIES tableProperties)
     ;
 
+//AST.69 TOK_TABLE_PARTITION subnode of AST.24
 tablePartitionPrefix
 @init {pushMsg("table partition prefix", state);}
 @after {popMsg(state);}
@@ -1219,6 +1333,7 @@ tablePartitionPrefix
   ->^(TOK_TABLE_PARTITION tableName partitionSpec?)
   ;
 
+//AST.70 TOK_ALTERTABLE_FILEFORMAT subnode of AST.39
 alterStatementSuffixFileFormat
 @init {pushMsg("alter fileformat statement", state); }
 @after {popMsg(state);}
@@ -1226,6 +1341,7 @@ alterStatementSuffixFileFormat
 	-> ^(TOK_ALTERTABLE_FILEFORMAT fileFormat)
 	;
 
+//AST.71,72,73 TOK_ALTERTABLE_CLUSTER_SORT subnode of AST.39
 alterStatementSuffixClusterbySortby
 @init {pushMsg("alter partition cluster by sort by statement", state);}
 @after {popMsg(state);}
@@ -1234,6 +1350,7 @@ alterStatementSuffixClusterbySortby
   | tableBuckets -> ^(TOK_ALTERTABLE_CLUSTER_SORT tableBuckets)
   ;
 
+//AST.74 TOK_ALTERTABLE_SKEWED_LOCATION subnode of AST.39
 alterTblPartitionStatementSuffixSkewedLocation
 @init {pushMsg("alter partition skewed location", state);}
 @after {popMsg(state);}
@@ -1241,6 +1358,7 @@ alterTblPartitionStatementSuffixSkewedLocation
   -> ^(TOK_ALTERTABLE_SKEWED_LOCATION skewedLocations)
   ;
 
+//AST.75 TOK_SKEWED_LOCATIONS subnode of AST.74
 skewedLocations
 @init { pushMsg("skewed locations", state); }
 @after { popMsg(state); }
@@ -1248,6 +1366,7 @@ skewedLocations
       LPAREN skewedLocationsList RPAREN -> ^(TOK_SKEWED_LOCATIONS skewedLocationsList)
     ;
 
+//AST.76 TOK_SKEWED_LOCATION_LIST subnode of AST.75
 skewedLocationsList
 @init { pushMsg("skewed locations list", state); }
 @after { popMsg(state); }
@@ -1255,6 +1374,7 @@ skewedLocationsList
       skewedLocationMap (COMMA skewedLocationMap)* -> ^(TOK_SKEWED_LOCATION_LIST skewedLocationMap+)
     ;
 
+//AST.77 TOK_SKEWED_LOCATION_LIST subnode of AST.76
 skewedLocationMap
 @init { pushMsg("specifying skewed location map", state); }
 @after { popMsg(state); }
@@ -1262,6 +1382,7 @@ skewedLocationMap
       key=skewedValueLocationElement EQUAL value=StringLiteral -> ^(TOK_SKEWED_LOCATION_MAP $key $value)
     ;
 
+//AST.78 TOK_ALTERTABLE_LOCATION subnode of AST.39
 alterStatementSuffixLocation
 @init {pushMsg("alter location", state);}
 @after {popMsg(state);}
@@ -1269,7 +1390,7 @@ alterStatementSuffixLocation
   -> ^(TOK_ALTERTABLE_LOCATION $newLoc)
   ;
 
-
+//AST.79,80,81 TOK_ALTERTABLE_SKEWED subnode of AST.38
 alterStatementSuffixSkewedby
 @init {pushMsg("alter skewed by statement", state);}
 @after{popMsg(state);}
@@ -1283,6 +1404,7 @@ alterStatementSuffixSkewedby
 	->^(TOK_ALTERTABLE_SKEWED storedAsDirs)
 	;
 
+//AST.82 TOK_ALTERTABLE_EXCHANGEPARTITION subnode of AST.38
 alterStatementSuffixExchangePartition
 @init {pushMsg("alter exchange partition", state);}
 @after{popMsg(state);}
@@ -1290,6 +1412,7 @@ alterStatementSuffixExchangePartition
     -> ^(TOK_ALTERTABLE_EXCHANGEPARTITION partitionSpec $exchangename)
     ;
 
+//AST.83 TOK_ALTERTABLE_PROTECTMODE subnode of AST.39
 alterStatementSuffixProtectMode
 @init { pushMsg("alter partition protect mode statement", state); }
 @after { popMsg(state); }
@@ -1297,6 +1420,7 @@ alterStatementSuffixProtectMode
     -> ^(TOK_ALTERTABLE_PROTECTMODE alterProtectMode)
     ;
 
+//AST.84 TOK_ALTERTABLE_RENAMEPART subnode of AST.39
 alterStatementSuffixRenamePart
 @init { pushMsg("alter table rename partition statement", state); }
 @after { popMsg(state); }
@@ -1304,6 +1428,7 @@ alterStatementSuffixRenamePart
     ->^(TOK_ALTERTABLE_RENAMEPART partitionSpec)
     ;
 
+//AST.85 TOK_ALTERTABLE_UPDATECOLSTATS
 alterStatementSuffixStatsPart
 @init { pushMsg("alter table stats partition statement", state); }
 @after { popMsg(state); }
@@ -1311,6 +1436,7 @@ alterStatementSuffixStatsPart
     ->^(TOK_ALTERTABLE_UPDATECOLSTATS $colName tableProperties $comment?)
     ;
 
+//AST.86 TOK_ALTERTABLE_MERGEFILES   subnode of AST.39
 alterStatementSuffixMergeFiles
 @init { pushMsg("", state); }
 @after { popMsg(state); }
@@ -1318,6 +1444,7 @@ alterStatementSuffixMergeFiles
     -> ^(TOK_ALTERTABLE_MERGEFILES)
     ;
 
+//AST.87,88 TOK_ENABLE   subnode of AST.83
 alterProtectMode
 @init { pushMsg("protect mode specification enable", state); }
 @after { popMsg(state); }
@@ -1325,6 +1452,7 @@ alterProtectMode
     | KW_DISABLE alterProtectModeMode  -> ^(TOK_DISABLE alterProtectModeMode)
     ;
 
+//AST.89 TOK_OFFLINE   subnode of AST.87
 alterProtectModeMode
 @init { pushMsg("protect mode specification enable", state); }
 @after { popMsg(state); }
@@ -1333,6 +1461,8 @@ alterProtectModeMode
     | KW_READONLY  -> ^(TOK_READONLY)
     ;
 
+
+//AST.90 TOK_OFFLINE   subnode of AST.87
 alterStatementSuffixBucketNum
 @init { pushMsg("", state); }
 @after { popMsg(state); }
@@ -1340,6 +1470,7 @@ alterStatementSuffixBucketNum
     -> ^(TOK_ALTERTABLE_BUCKETS $num)
     ;
 
+//AST.91 TOK_ALTERTABLE_COMPACT   subnode of AST.39
 alterStatementSuffixCompact
 @init { msgs.push("compaction request"); }
 @after { msgs.pop(); }
@@ -1347,7 +1478,7 @@ alterStatementSuffixCompact
     -> ^(TOK_ALTERTABLE_COMPACT $compactType)
     ;
 
-
+//AST.92 TOK_TABLEFILEFORMAT
 fileFormat
 @init { pushMsg("file format specification", state); }
 @after { popMsg(state); }
@@ -1356,6 +1487,7 @@ fileFormat
     | genericSpec=identifier -> ^(TOK_FILEFORMAT_GENERIC $genericSpec)
     ;
 
+//AST.93 tabTypeExpr
 tabTypeExpr
 @init { pushMsg("specifying table types", state); }
 @after { popMsg(state); }
@@ -1370,12 +1502,14 @@ tabTypeExpr
    ))* identifier?
    ;
 
+//AST.94 partTypeExpr TOK_TABTYPE
 partTypeExpr
 @init { pushMsg("specifying table partitions", state); }
 @after { popMsg(state); }
     :  tabTypeExpr partitionSpec? -> ^(TOK_TABTYPE tabTypeExpr partitionSpec?)
     ;
 
+//AST.95  TOK_DESCDATABASE subnode of AST.8
 descStatement
 @init { pushMsg("describe statement", state); }
 @after { popMsg(state); }
@@ -1392,6 +1526,7 @@ descStatement
     )
     ;
 
+//AST.96  TOK_DESCDATABASE subnode of AST.8
 analyzeStatement
 @init { pushMsg("analyze statement", state); }
 @after { popMsg(state); }
@@ -1400,6 +1535,7 @@ analyzeStatement
       -> ^(TOK_ANALYZE $parttype $noscan? $partialscan? KW_COLUMNS? $statsColumnName?)
     ;
 
+//AST.97  TOK_SHOWCOLUMNS subnode of AST.8
 showStatement
 @init { pushMsg("show statement", state); }
 @after { popMsg(state); }
@@ -1426,36 +1562,44 @@ showStatement
     | KW_SHOW KW_CONF StringLiteral -> ^(TOK_SHOWCONF StringLiteral)
     ;
 
+//AST.97  TOK_LOCKTABLE subnode of AST.8
 lockStatement
 @init { pushMsg("lock statement", state); }
 @after { popMsg(state); }
     : KW_LOCK KW_TABLE tableName partitionSpec? lockMode -> ^(TOK_LOCKTABLE tableName lockMode partitionSpec?)
     ;
 
+
+//AST.98  TOK_LOCKDB subnode of AST.8
 lockDatabase
 @init { pushMsg("lock database statement", state); }
 @after { popMsg(state); }
     : KW_LOCK (KW_DATABASE|KW_SCHEMA) (dbName=Identifier) lockMode -> ^(TOK_LOCKDB $dbName lockMode)
     ;
 
+
+//AST.99  lockMode subnode of AST.97
 lockMode
 @init { pushMsg("lock mode", state); }
 @after { popMsg(state); }
     : KW_SHARED | KW_EXCLUSIVE
     ;
 
+//AST.100  TOK_UNLOCKTABLE subnode of AST.8
 unlockStatement
 @init { pushMsg("unlock statement", state); }
 @after { popMsg(state); }
     : KW_UNLOCK KW_TABLE tableName partitionSpec?  -> ^(TOK_UNLOCKTABLE tableName partitionSpec?)
     ;
 
+//AST.101  TOK_UNLOCKTABLE subnode of AST.8
 unlockDatabase
 @init { pushMsg("unlock database statement", state); }
 @after { popMsg(state); }
     : KW_UNLOCK (KW_DATABASE|KW_SCHEMA) (dbName=Identifier) -> ^(TOK_UNLOCKDB $dbName)
     ;
 
+//AST.102  TOK_CREATEROLE subnode of AST.8
 createRoleStatement
 @init { pushMsg("create role", state); }
 @after { popMsg(state); }
@@ -1463,6 +1607,7 @@ createRoleStatement
     -> ^(TOK_CREATEROLE $roleName)
     ;
 
+//AST.103  TOK_DROPROLE subnode of AST.8
 dropRoleStatement
 @init {pushMsg("drop role", state);}
 @after {popMsg(state);}
@@ -1470,6 +1615,7 @@ dropRoleStatement
     -> ^(TOK_DROPROLE $roleName)
     ;
 
+//AST.104  TOK_GRANT subnode of AST.8
 grantPrivileges
 @init {pushMsg("grant privileges", state);}
 @after {popMsg(state);}
@@ -1480,6 +1626,7 @@ grantPrivileges
     -> ^(TOK_GRANT $privList principalSpecification privilegeObject? withGrantOption?)
     ;
 
+//AST.105  TOK_REVOKE subnode of AST.8
 revokePrivileges
 @init {pushMsg("revoke privileges", state);}
 @afer {popMsg(state);}
@@ -1487,6 +1634,7 @@ revokePrivileges
     -> ^(TOK_REVOKE privilegeList principalSpecification privilegeObject? grantOptionFor?)
     ;
 
+//AST.106  TOK_GRANT_ROLE subnode of AST.8
 grantRole
 @init {pushMsg("grant role", state);}
 @after {popMsg(state);}
@@ -1494,6 +1642,7 @@ grantRole
     -> ^(TOK_GRANT_ROLE principalSpecification withAdminOption? identifier+)
     ;
 
+//AST.107  TOK_REVOKE_ROLE subnode of AST.8
 revokeRole
 @init {pushMsg("revoke role", state);}
 @after {popMsg(state);}
@@ -1501,6 +1650,7 @@ revokeRole
     -> ^(TOK_REVOKE_ROLE principalSpecification adminOptionFor? identifier+)
     ;
 
+//AST.108  TOK_SHOW_ROLE_GRANT subnode of AST.8
 showRoleGrants
 @init {pushMsg("show role grants", state);}
 @after {popMsg(state);}
@@ -1509,6 +1659,7 @@ showRoleGrants
     ;
 
 
+//AST.109  TOK_SHOW_ROLES subnode of AST.8
 showRoles
 @init {pushMsg("show roles", state);}
 @after {popMsg(state);}
@@ -1516,6 +1667,7 @@ showRoles
     -> ^(TOK_SHOW_ROLES)
     ;
 
+//AST.110  TOK_SHOW_SET_ROLE subnode of AST.8
 showCurrentRole
 @init {pushMsg("show current role", state);}
 @after {popMsg(state);}
@@ -1523,6 +1675,8 @@ showCurrentRole
     -> ^(TOK_SHOW_SET_ROLE)
     ;
 
+
+//AST.111  TOK_SHOW_SET_ROLE subnode of AST.8
 setRole
 @init {pushMsg("set role", state);}
 @after {popMsg(state);}
@@ -1534,6 +1688,7 @@ setRole
     )
     ;
 
+//AST.112  TOK_SHOW_GRANT subnode of AST.8
 showGrants
 @init {pushMsg("show grants", state);}
 @after {popMsg(state);}
@@ -1541,6 +1696,7 @@ showGrants
     -> ^(TOK_SHOW_GRANT principalName? privilegeIncludeColObject?)
     ;
 
+//AST.113  TOK_SHOW_ROLE_PRINCIPALS subnode of AST.8
 showRolePrincipals
 @init {pushMsg("show role principals", state);}
 @after {popMsg(state);}
@@ -1549,6 +1705,7 @@ showRolePrincipals
     ;
 
 
+//AST.114  TOK_RESOURCE_ALL subnode of AST.112
 privilegeIncludeColObject
 @init {pushMsg("privilege object including columns", state);}
 @after {popMsg(state);}
@@ -1556,12 +1713,15 @@ privilegeIncludeColObject
     | privObjectCols -> ^(TOK_PRIV_OBJECT_COL privObjectCols)
     ;
 
+//AST.115  TOK_PRIV_OBJECT subnode of AST.104
 privilegeObject
 @init {pushMsg("privilege object", state);}
 @after {popMsg(state);}
     : KW_ON privObject -> ^(TOK_PRIV_OBJECT privObject)
     ;
 
+
+//AST.116  TOK_DB_TYPE subnode of AST.114
 // database or table type. Type is optional, default type is table
 privObject
     : (KW_DATABASE|KW_SCHEMA) identifier -> ^(TOK_DB_TYPE identifier)
@@ -1570,6 +1730,7 @@ privObject
     | KW_SERVER identifier -> ^(TOK_SERVER_TYPE identifier)
     ;
 
+//AST.117  TOK_DB_TYPE subnode of AST.114
 privObjectCols
     : (KW_DATABASE|KW_SCHEMA) identifier -> ^(TOK_DB_TYPE identifier)
     | KW_TABLE? tableName (LPAREN cols=columnNameList RPAREN)? partitionSpec? -> ^(TOK_TABLE_TYPE tableName $cols? partitionSpec?)
@@ -1577,6 +1738,8 @@ privObjectCols
     | KW_SERVER identifier -> ^(TOK_SERVER_TYPE identifier)
     ;
 
+
+//AST.118  TOK_PRIVILEGE_LIST subnode of AST.105
 privilegeList
 @init {pushMsg("grant privilege list", state);}
 @after {popMsg(state);}
@@ -1584,6 +1747,7 @@ privilegeList
     -> ^(TOK_PRIVILEGE_LIST privlegeDef+)
     ;
 
+//AST.119  TOK_PRIVILEGE subnode of AST.118
 privlegeDef
 @init {pushMsg("grant privilege", state);}
 @after {popMsg(state);}
@@ -1591,6 +1755,8 @@ privlegeDef
     -> ^(TOK_PRIVILEGE privilegeType $cols?)
     ;
 
+
+//AST.120  TOK_PRIV_ALL subnode of AST.119
 privilegeType
 @init {pushMsg("privilege type", state);}
 @after {popMsg(state);}
@@ -1607,12 +1773,16 @@ privilegeType
     | KW_DELETE -> ^(TOK_PRIV_DELETE)
     ;
 
+
+//AST.121  TOK_PRINCIPAL_NAME subnode of AST.104
 principalSpecification
 @init { pushMsg("user/group/role name list", state); }
 @after { popMsg(state); }
     : principalName (COMMA principalName)* -> ^(TOK_PRINCIPAL_NAME principalName+)
     ;
 
+
+//AST.122  TOK_USER subnode of AST.121
 principalName
 @init {pushMsg("user|group|role name", state);}
 @after {popMsg(state);}
@@ -1621,6 +1791,7 @@ principalName
     | KW_ROLE identifier -> ^(TOK_ROLE identifier)
     ;
 
+//AST.123  TOK_GRANT_WITH_OPTION subnode of AST.104
 withGrantOption
 @init {pushMsg("with grant option", state);}
 @after {popMsg(state);}
@@ -1628,6 +1799,8 @@ withGrantOption
     -> ^(TOK_GRANT_WITH_OPTION)
     ;
 
+
+//AST.124  TOK_GRANT_WITH_OPTION subnode of AST.105
 grantOptionFor
 @init {pushMsg("grant option for", state);}
 @after {popMsg(state);}
@@ -1635,6 +1808,7 @@ grantOptionFor
     -> ^(TOK_GRANT_OPTION_FOR)
 ;
 
+//AST.125  TOK_ADMIN_OPTION_FOR subnode of AST.107
 adminOptionFor
 @init {pushMsg("admin option for", state);}
 @after {popMsg(state);}
@@ -1642,6 +1816,8 @@ adminOptionFor
     -> ^(TOK_ADMIN_OPTION_FOR)
 ;
 
+
+//AST.126  TOK_GRANT_WITH_ADMIN_OPTION subnode of AST.106
 withAdminOption
 @init {pushMsg("with admin option", state);}
 @after {popMsg(state);}
@@ -1649,6 +1825,8 @@ withAdminOption
     -> ^(TOK_GRANT_WITH_ADMIN_OPTION)
     ;
 
+
+//AST.127  TOK_MSCK subnode of AST.8
 metastoreCheck
 @init { pushMsg("metastore check statement", state); }
 @after { popMsg(state); }
@@ -1656,6 +1834,7 @@ metastoreCheck
     -> ^(TOK_MSCK $repair? (tableName partitionSpec*)?)
     ;
 
+//AST.128  TOK_RESOURCE_LIST
 resourceList
 @init { pushMsg("resource list", state); }
 @after { popMsg(state); }
@@ -1663,6 +1842,8 @@ resourceList
   resource (COMMA resource)* -> ^(TOK_RESOURCE_LIST resource+)
   ;
 
+
+//AST.129  TOK_RESOURCE_URI  subnode of AST.128
 resource
 @init { pushMsg("resource", state); }
 @after { popMsg(state); }
@@ -1670,6 +1851,8 @@ resource
   resType=resourceType resPath=StringLiteral -> ^(TOK_RESOURCE_URI $resType $resPath)
   ;
 
+
+//AST.130  TOK_JAR  subnode of AST.129
 resourceType
 @init { pushMsg("resource type", state); }
 @after { popMsg(state); }
@@ -1681,6 +1864,8 @@ resourceType
   KW_ARCHIVE -> ^(TOK_ARCHIVE)
   ;
 
+
+//AST.131  TOK_CREATEFUNCTION  subnode of AST.8
 createFunctionStatement
 @init { pushMsg("create function statement", state); }
 @after { popMsg(state); }
@@ -1690,6 +1875,7 @@ createFunctionStatement
     ->                  ^(TOK_CREATEFUNCTION functionIdentifier StringLiteral $rList?)
     ;
 
+//AST.132  TOK_DROPFUNCTION  subnode of AST.8
 dropFunctionStatement
 @init { pushMsg("drop function statement", state); }
 @after { popMsg(state); }
@@ -1698,11 +1884,15 @@ dropFunctionStatement
     ->                  ^(TOK_DROPFUNCTION functionIdentifier ifExists?)
     ;
 
+
+//AST.133  TOK_RELOADFUNCTION  subnode of AST.8
 reloadFunctionStatement
 @init { pushMsg("reload function statement", state); }
 @after { popMsg(state); }
     : KW_RELOAD KW_FUNCTION -> ^(TOK_RELOADFUNCTION);
 
+
+//AST.134  TOK_CREATEMACRO  subnode of AST.8
 createMacroStatement
 @init { pushMsg("create macro statement", state); }
 @after { popMsg(state); }
@@ -1711,6 +1901,8 @@ createMacroStatement
     -> ^(TOK_CREATEMACRO Identifier columnNameTypeList? expression)
     ;
 
+
+//AST.135  TOK_DROPMACRO  subnode of AST.8
 dropMacroStatement
 @init { pushMsg("drop macro statement", state); }
 @after { popMsg(state); }
@@ -1718,6 +1910,8 @@ dropMacroStatement
     -> ^(TOK_DROPMACRO Identifier ifExists?)
     ;
 
+
+//AST.136  TOK_CREATEVIEW  subnode of AST.8
 createViewStatement
 @init {
     pushMsg("create view statement", state);
@@ -1738,6 +1932,8 @@ createViewStatement
         )
     ;
 
+
+//AST.137  TOK_VIEWPARTCOLS
 viewPartition
 @init { pushMsg("view partition specification", state); }
 @after { popMsg(state); }
@@ -1745,12 +1941,16 @@ viewPartition
     -> ^(TOK_VIEWPARTCOLS columnNameList)
     ;
 
+
+//AST.138  TOK_DROPVIEW  subnode of AST.8
 dropViewStatement
 @init { pushMsg("drop view statement", state); }
 @after { popMsg(state); }
     : KW_DROP KW_VIEW ifExists? viewName -> ^(TOK_DROPVIEW viewName ifExists?)
     ;
 
+
+//AST.139  showFunctionIdentifier  subnode of AST.97
 showFunctionIdentifier
 @init { pushMsg("identifier for show function statement", state); }
 @after { popMsg(state); }
@@ -1758,6 +1958,7 @@ showFunctionIdentifier
     | StringLiteral
     ;
 
+//AST.140  showStmtIdentifier  subnode of AST.97
 showStmtIdentifier
 @init { pushMsg("identifier for show statement", state); }
 @after { popMsg(state); }
@@ -1765,6 +1966,8 @@ showStmtIdentifier
     | StringLiteral
     ;
 
+
+//AST.141  TOK_TABLECOMMENT  subnode of AST.23
 tableComment
 @init { pushMsg("table's comment", state); }
 @after { popMsg(state); }
@@ -1772,6 +1975,8 @@ tableComment
       KW_COMMENT comment=StringLiteral  -> ^(TOK_TABLECOMMENT $comment)
     ;
 
+
+//AST.142 TOK_TABLEPARTCOLS  subnode of AST.23
 tablePartition
 @init { pushMsg("table partition specification", state); }
 @after { popMsg(state); }
@@ -1779,6 +1984,8 @@ tablePartition
     -> ^(TOK_TABLEPARTCOLS columnNameTypeList)
     ;
 
+
+//AST.143 TOK_ALTERTABLE_BUCKETS  subnode of AST.23
 tableBuckets
 @init { pushMsg("table buckets specification", state); }
 @after { popMsg(state); }
@@ -1787,6 +1994,8 @@ tableBuckets
     -> ^(TOK_ALTERTABLE_BUCKETS $bucketCols $sortCols? $num)
     ;
 
+
+//AST.144 TOK_TABLESKEWED  subnode of AST.23
 tableSkewed
 @init { pushMsg("table skewed specification", state); }
 @after { popMsg(state); }
@@ -1795,6 +2004,8 @@ tableSkewed
     -> ^(TOK_TABLESKEWED $skewedCols $skewedValues storedAsDirs?)
     ;
 
+
+//AST.145 TOK_SERDE
 rowFormat
 @init { pushMsg("serde specification", state); }
 @after { popMsg(state); }
@@ -1803,6 +2014,8 @@ rowFormat
     |   -> ^(TOK_SERDE)
     ;
 
+
+//AST.146 TOK_RECORDREADER
 recordReader
 @init { pushMsg("record reader specification", state); }
 @after { popMsg(state); }
@@ -1810,6 +2023,8 @@ recordReader
     |   -> ^(TOK_RECORDREADER)
     ;
 
+
+//AST.147 TOK_RECORDWRITER
 recordWriter
 @init { pushMsg("record writer specification", state); }
 @after { popMsg(state); }
@@ -1817,6 +2032,8 @@ recordWriter
     |   -> ^(TOK_RECORDWRITER)
     ;
 
+
+//AST.148 TOK_SERDENAME subnode of AST.145
 rowFormatSerde
 @init { pushMsg("serde format specification", state); }
 @after { popMsg(state); }
@@ -1824,6 +2041,8 @@ rowFormatSerde
     -> ^(TOK_SERDENAME $name $serdeprops?)
     ;
 
+
+//AST.149 TOK_SERDEPROPS subnode of AST.145
 rowFormatDelimited
 @init { pushMsg("serde properties specification", state); }
 @after { popMsg(state); }
@@ -1832,6 +2051,8 @@ rowFormatDelimited
     -> ^(TOK_SERDEPROPS tableRowFormatFieldIdentifier? tableRowFormatCollItemsIdentifier? tableRowFormatMapKeysIdentifier? tableRowFormatLinesIdentifier? tableRowNullFormat?)
     ;
 
+
+//AST.150 TOK_TABLEROWFORMAT subnode of AST.23
 tableRowFormat
 @init { pushMsg("table row format specification", state); }
 @after { popMsg(state); }
@@ -1842,6 +2063,9 @@ tableRowFormat
     -> ^(TOK_TABLESERIALIZER rowFormatSerde)
     ;
 
+
+//AST.151 tablePropertiesPrefixed subnode of AST.23
+//整体结构意味着这个规则首先匹配一个关键字 KW_TBLPROPERTIES（且它不会出现在最终的语法树中），然后是 tableProperties。
 tablePropertiesPrefixed
 @init { pushMsg("table properties with prefix", state); }
 @after { popMsg(state); }
@@ -1849,6 +2073,7 @@ tablePropertiesPrefixed
         KW_TBLPROPERTIES! tableProperties
     ;
 
+//AST.152 TOK_TABLEPROPERTIES subnode of AST.151
 tableProperties
 @init { pushMsg("table properties", state); }
 @after { popMsg(state); }
@@ -1856,6 +2081,7 @@ tableProperties
       LPAREN tablePropertiesList RPAREN -> ^(TOK_TABLEPROPERTIES tablePropertiesList)
     ;
 
+//AST.153 TOK_TABLEPROPLIST subnode of AST.152
 tablePropertiesList
 @init { pushMsg("table properties list", state); }
 @after { popMsg(state); }
@@ -1865,6 +2091,8 @@ tablePropertiesList
       keyProperty (COMMA keyProperty)* -> ^(TOK_TABLEPROPLIST keyProperty+)
     ;
 
+
+//AST.154 TOK_TABLEPROPERTY subnode of AST.154
 keyValueProperty
 @init { pushMsg("specifying key/value property", state); }
 @after { popMsg(state); }
@@ -1872,6 +2100,7 @@ keyValueProperty
       key=StringLiteral EQUAL value=StringLiteral -> ^(TOK_TABLEPROPERTY $key $value)
     ;
 
+//AST.155 TOK_TABLEPROPERTY subnode of AST.153
 keyProperty
 @init { pushMsg("specifying key property", state); }
 @after { popMsg(state); }
@@ -1879,6 +2108,7 @@ keyProperty
       key=StringLiteral -> ^(TOK_TABLEPROPERTY $key TOK_NULL)
     ;
 
+//AST.156 TOK_TABLEPROPERTY subnode of AST.149
 tableRowFormatFieldIdentifier
 @init { pushMsg("table row format's field separator", state); }
 @after { popMsg(state); }
@@ -1887,6 +2117,7 @@ tableRowFormatFieldIdentifier
     -> ^(TOK_TABLEROWFORMATFIELD $fldIdnt $fldEscape?)
     ;
 
+//AST.157 TOK_TABLEROWFORMATCOLLITEMS subnode of AST.149
 tableRowFormatCollItemsIdentifier
 @init { pushMsg("table row format's column separator", state); }
 @after { popMsg(state); }
@@ -1895,6 +2126,7 @@ tableRowFormatCollItemsIdentifier
     -> ^(TOK_TABLEROWFORMATCOLLITEMS $collIdnt)
     ;
 
+//AST.158 TOK_TABLEROWFORMATMAPKEYS subnode of AST.149
 tableRowFormatMapKeysIdentifier
 @init { pushMsg("table row format's map key separator", state); }
 @after { popMsg(state); }
@@ -1903,6 +2135,8 @@ tableRowFormatMapKeysIdentifier
     -> ^(TOK_TABLEROWFORMATMAPKEYS $mapKeysIdnt)
     ;
 
+
+//AST.159 TOK_TABLEROWFORMATLINES subnode of AST.149
 tableRowFormatLinesIdentifier
 @init { pushMsg("table row format's line separator", state); }
 @after { popMsg(state); }
@@ -1911,6 +2145,8 @@ tableRowFormatLinesIdentifier
     -> ^(TOK_TABLEROWFORMATLINES $linesIdnt)
     ;
 
+
+//AST.160 TOK_TABLEROWFORMATNULL subnode of AST.149
 tableRowNullFormat
 @init { pushMsg("table row format's null specifier", state); }
 @after { popMsg(state); }
@@ -1918,6 +2154,8 @@ tableRowNullFormat
       KW_NULL KW_DEFINED KW_AS nullIdnt=StringLiteral
     -> ^(TOK_TABLEROWFORMATNULL $nullIdnt)
     ;
+
+//AST.161 TOK_TABLEFILEFORMAT subnode of AST.23
 tableFileFormat
 @init { pushMsg("table file format specification", state); }
 @after { popMsg(state); }
@@ -1931,6 +2169,7 @@ tableFileFormat
       -> ^(TOK_FILEFORMAT_GENERIC $genericSpec)
     ;
 
+//AST.162 TOK_TABLELOCATION subnode of AST.23 AST.7
 tableLocation
 @init { pushMsg("table location specification", state); }
 @after { popMsg(state); }
@@ -1938,24 +2177,36 @@ tableLocation
       KW_LOCATION locn=StringLiteral -> ^(TOK_TABLELOCATION $locn)
     ;
 
+
+
+
+
+
+//AST.163 TOK_TABCOLLIST subnode of AST.23
+
 columnNameTypeList
 @init { pushMsg("column name type list", state); }
 @after { popMsg(state); }
     : columnNameType (COMMA columnNameType)* -> ^(TOK_TABCOLLIST columnNameType+)
     ;
 
+
+//AST.164 TOK_TABCOLLIST
 columnNameColonTypeList
 @init { pushMsg("column name type list", state); }
 @after { popMsg(state); }
     : columnNameColonType (COMMA columnNameColonType)* -> ^(TOK_TABCOLLIST columnNameColonType+)
     ;
 
+//AST.165 TOK_TABCOLNAME
 columnNameList
 @init { pushMsg("column name list", state); }
 @after { popMsg(state); }
     : columnName (COMMA columnName)* -> ^(TOK_TABCOLNAME columnName+)
     ;
 
+
+//AST.166 TOK_TABCOLNAME  subnode of AST.165
 columnName
 @init { pushMsg("column name", state); }
 @after { popMsg(state); }
@@ -1963,12 +2214,15 @@ columnName
       identifier
     ;
 
+//AST.167 TOK_TABCOLNAME  subnode of AST.166
 columnNameOrderList
 @init { pushMsg("column name order list", state); }
 @after { popMsg(state); }
     : columnNameOrder (COMMA columnNameOrder)* -> ^(TOK_TABCOLNAME columnNameOrder+)
     ;
 
+
+//AST.168 skewedValueElement
 skewedValueElement
 @init { pushMsg("skewed value element", state); }
 @after { popMsg(state); }
@@ -1977,12 +2231,15 @@ skewedValueElement
      | skewedColumnValuePairList
     ;
 
+
+//AST.169 TOK_TABCOLVALUE_PAIR
 skewedColumnValuePairList
 @init { pushMsg("column value pair list", state); }
 @after { popMsg(state); }
     : skewedColumnValuePair (COMMA skewedColumnValuePair)* -> ^(TOK_TABCOLVALUE_PAIR skewedColumnValuePair+)
     ;
 
+//AST.170 TOK_TABCOLVALUES
 skewedColumnValuePair
 @init { pushMsg("column value pair", state); }
 @after { popMsg(state); }
@@ -1991,12 +2248,15 @@ skewedColumnValuePair
       -> ^(TOK_TABCOLVALUES $colValues)
     ;
 
+
+//AST.171 TOK_TABCOLVALUE   subnode of AST.170
 skewedColumnValues
 @init { pushMsg("column values", state); }
 @after { popMsg(state); }
     : skewedColumnValue (COMMA skewedColumnValue)* -> ^(TOK_TABCOLVALUE skewedColumnValue+)
     ;
 
+//AST.172 skewedColumnValue   subnode of AST.171
 skewedColumnValue
 @init { pushMsg("column value", state); }
 @after { popMsg(state); }
@@ -2004,6 +2264,7 @@ skewedColumnValue
       constant
     ;
 
+//AST.173 skewedValueLocationElement   subnode of AST.172
 skewedValueLocationElement
 @init { pushMsg("skewed value location element", state); }
 @after { popMsg(state); }
@@ -2012,6 +2273,7 @@ skewedValueLocationElement
      | skewedColumnValuePair
     ;
 
+//AST.174 TOK_TABSORTCOLNAMEASC   subnode of AST.167
 columnNameOrder
 @init { pushMsg("column name order", state); }
 @after { popMsg(state); }
@@ -2020,12 +2282,14 @@ columnNameOrder
     ->                  ^(TOK_TABSORTCOLNAMEDESC identifier)
     ;
 
+//AST.175 TOK_TABCOLNAME   subnode of AST.136
 columnNameCommentList
 @init { pushMsg("column name comment list", state); }
 @after { popMsg(state); }
     : columnNameComment (COMMA columnNameComment)* -> ^(TOK_TABCOLNAME columnNameComment+)
     ;
 
+//AST.176 TOK_TABCOL   subnode of AST.175
 columnNameComment
 @init { pushMsg("column name comment", state); }
 @after { popMsg(state); }
@@ -2033,6 +2297,7 @@ columnNameComment
     -> ^(TOK_TABCOL $colName TOK_NULL $comment?)
     ;
 
+//AST.177 TOK_TABSORTCOLNAMEASC
 columnRefOrder
 @init { pushMsg("column order", state); }
 @after { popMsg(state); }
@@ -2041,6 +2306,7 @@ columnRefOrder
     ->                  ^(TOK_TABSORTCOLNAMEDESC expression)
     ;
 
+//AST.178 TOK_TABCOL   subnode of AST.40
 columnNameType
 @init { pushMsg("column specification", state); }
 @after { popMsg(state); }
@@ -2050,6 +2316,7 @@ columnNameType
     ->                     ^(TOK_TABCOL $colName colType $comment)
     ;
 
+//AST.179 TOK_TABCOL   subnode of AST.164
 columnNameColonType
 @init { pushMsg("column specification", state); }
 @after { popMsg(state); }
@@ -2058,18 +2325,21 @@ columnNameColonType
     ->                     ^(TOK_TABCOL $colName colType $comment)
     ;
 
+//AST.180 colType   subnode of AST.179
 colType
 @init { pushMsg("column type", state); }
 @after { popMsg(state); }
     : type
     ;
 
+//AST.181 TOK_COLTYPELIST   subnode of AST.174
 colTypeList
 @init { pushMsg("column type list", state); }
 @after { popMsg(state); }
     : colType (COMMA colType)* -> ^(TOK_COLTYPELIST colType+)
     ;
 
+//AST.182 type
 type
     : primitiveType
     | listType
@@ -2077,6 +2347,7 @@ type
     | mapType
     | unionType;
 
+//AST.183 TOK_TINYINT   subnode of AST.182 174
 primitiveType
 @init { pushMsg("primitive type specification", state); }
 @after { popMsg(state); }
@@ -2100,18 +2371,21 @@ primitiveType
     | KW_CHAR LPAREN length=Number RPAREN      ->    ^(TOK_CHAR $length)
     ;
 
+//AST.184 TOK_LIST  subnode of AST.182
 listType
 @init { pushMsg("list type", state); }
 @after { popMsg(state); }
     : KW_ARRAY LESSTHAN type GREATERTHAN   -> ^(TOK_LIST type)
     ;
 
+//AST.185 TOK_STRUCT   subnode of AST.182
 structType
 @init { pushMsg("struct type", state); }
 @after { popMsg(state); }
     : KW_STRUCT LESSTHAN columnNameColonTypeList GREATERTHAN -> ^(TOK_STRUCT columnNameColonTypeList)
     ;
 
+//AST.186 TOK_MAP   subnode of AST.182
 mapType
 @init { pushMsg("map type", state); }
 @after { popMsg(state); }
@@ -2119,12 +2393,14 @@ mapType
     -> ^(TOK_MAP $left $right)
     ;
 
+//AST.187 TOK_UNIONTYPE   subnode of AST.182
 unionType
 @init { pushMsg("uniontype type", state); }
 @after { popMsg(state); }
     : KW_UNIONTYPE LESSTHAN colTypeList GREATERTHAN -> ^(TOK_UNIONTYPE colTypeList)
     ;
 
+//AST.188 TOK_UNIONALL
 setOperator
 @init { pushMsg("set operator", state); }
 @after { popMsg(state); }
@@ -2132,6 +2408,7 @@ setOperator
     | KW_UNION KW_DISTINCT? -> ^(TOK_UNIONDISTINCT)
     ;
 
+//AST.189 queryStatementExpressionBody
 queryStatementExpression[boolean topLevel]
     :
     /* Would be nice to do this as a gated semantic perdicate
@@ -2147,23 +2424,28 @@ queryStatementExpression[boolean topLevel]
     ->  queryStatementExpressionBody
     ;
 
+//AST.190 queryStatementExpressionBody   subnode of AST.189
 queryStatementExpressionBody[boolean topLevel]
     :
     fromStatement[topLevel]
     | regularBody[topLevel]
     ;
 
+//AST.191 TOK_CTE
 withClause
   :
   KW_WITH cteStatement (COMMA cteStatement)* -> ^(TOK_CTE cteStatement+)
 ;
 
+//AST.192 TOK_SUBQUERY   subnode of AST.191
 cteStatement
    :
    identifier KW_AS LPAREN queryStatementExpression[false] RPAREN
    -> ^(TOK_SUBQUERY queryStatementExpression identifier)
 ;
 
+//AST.193 TOK_FROM   subnode of AST.190
+//todo 这里结构略复杂,还没清楚
 fromStatement[boolean topLevel]
 : (singleFromStatement  -> singleFromStatement)
 	(u=setOperator r=singleFromStatement
@@ -2185,12 +2467,15 @@ fromStatement[boolean topLevel]
 	;
 
 
+//AST.194 TOK_QUERY   subnode of AST.193
 singleFromStatement
     :
     fromClause
     ( b+=body )+ -> ^(TOK_QUERY fromClause body+)
     ;
 
+
+//AST.195 TOK_QUERY   subnode of AST.190
 /*
 The valuesClause rule below ensures that the parse tree for
 "insert into table FOO values (1,2),(3,4)" looks the same as
@@ -2217,6 +2502,14 @@ regularBody[boolean topLevel]
    selectStatement[topLevel]
    ;
 
+
+//AST.196 $selectStatement   subnode of AST.195
+//s=selectClause 这是捕获结果的写法，s为 selectClause的结果，后面的同上
+//(set=setOpSelectStatement[$selectStatement.tree, topLevel])?: 定义 set 为 setOpSelectStatement 的结果，该操作是可选的。
+//setOpSelectStatement 通常用来处理 SQL 的联合查询（如 UNION、INTERSECT 等）。[] 是解析的时候传入的参数
+//->{$selectStatement.tree}: 条件判断 {set == null} 是否为真，如果为真则执行 {$selectStatement.tree}， 返回当前的查询树。
+//如果前面条件不为真，则再次检查 {o==null && c==null && d==null && sort==null && l==null} 是否为真，如果为真则执行 {$set.tree}， 返回 setOpSelectStatement 生成的树。
+//->{throwSetOpException()}: 如果上述条件都不满足，则调用 throwSetOpException() 方法抛出一个异常。
 selectStatement[boolean topLevel]
    :
    (
@@ -2243,6 +2536,7 @@ selectStatement[boolean topLevel]
    -> {throwSetOpException()}
    ;
 
+//AST.197 TOK_QUERY   subnode of AST.196
 setOpSelectStatement[CommonTree t, boolean topLevel]
    :
    (u=setOperator b=simpleSelectStatement
@@ -2299,6 +2593,12 @@ setOpSelectStatement[CommonTree t, boolean topLevel]
        )
    ;
 
+
+//AST.198 TOK_QUERY   subnode of AST.197
+//select from(可选) where group_by(可选) having_by(可选) window_clause(可选)
+// ((a)=>b)?：表示这个预测路径是可选的，即这个路径可以被采取，也可以不被采取.
+// 箭头 (=>)：在 ANTLR 中，箭头用于引导解析器采取某种特定的动作或者进入特定的路径。特别地，=> 被称为“预测（predicated）解析”，它用于指导解析器在某些特殊情况下如何处理输入。
+//-> denotes a rewrite rule in ANTLR 3 that constructs an AST from the parser rule.
 simpleSelectStatement
    :
    selectClause
@@ -2311,6 +2611,9 @@ simpleSelectStatement
                      selectClause whereClause? groupByClause? havingClause? window_clause?))
    ;
 
+
+//AST.199 selectStatement   subnode of AST.23,41,136
+// selectStatementWithCTE 最终会构造为一个selectStatement 树，如果withClause存在就将它传给w 变量，在花括号包围的action中添加为子节点，构造一个新的树selectStatement替代selectStatementWithCTE
 selectStatementWithCTE
     :
     (w=withClause)?
@@ -2322,6 +2625,8 @@ selectStatementWithCTE
     ->  selectStatement
     ;
 
+
+//AST.200 TOK_INSERT   subnode of AST.194
 body
    :
    insertClause
@@ -2354,6 +2659,7 @@ body
                      distributeByClause? sortByClause? window_clause? limitClause?)
    ;
 
+//AST.201 TOK_INSERT_INTO   subnode of AST.200
 insertClause
 @init { pushMsg("insert clause", state); }
 @after { popMsg(state); }
@@ -2363,6 +2669,8 @@ insertClause
        -> ^(TOK_INSERT_INTO tableOrPartition $targetCols?)
    ;
 
+
+//AST.202 TOK_DIR   subnode of AST.201
 destination
 @init { pushMsg("destination specification", state); }
 @after { popMsg(state); }
@@ -2372,6 +2680,7 @@ destination
    | KW_TABLE tableOrPartition -> tableOrPartition
    ;
 
+//AST.203 TOK_LIMIT   subnode of AST.200
 limitClause
 @init { pushMsg("limit clause", state); }
 @after { popMsg(state); }
@@ -2379,6 +2688,7 @@ limitClause
    KW_LIMIT num=Number -> ^(TOK_LIMIT $num)
    ;
 
+//AST.204 TOK_LIMIT   subnode of AST.3
 //DELETE FROM <tableName> WHERE ...;
 deleteStatement
 @init { pushMsg("delete statement", state); }
@@ -2387,18 +2697,21 @@ deleteStatement
    KW_DELETE KW_FROM tableName (whereClause)? -> ^(TOK_DELETE_FROM tableName whereClause?)
    ;
 
+//AST.205 EQUAL
 /*SET <columName> = (3 + col2)*/
 columnAssignmentClause
    :
    tableOrColumn EQUAL^ precedencePlusExpression
    ;
 
+//AST.206 TOK_SET_COLUMNS_CLAUSE  subnode of AST.207
 /*SET col1 = 5, col2 = (4 + col4), ...*/
 setColumnsClause
    :
    KW_SET columnAssignmentClause (COMMA columnAssignmentClause)* -> ^(TOK_SET_COLUMNS_CLAUSE columnAssignmentClause* )
    ;
 
+//AST.207 TOK_UPDATE_TABLE subnode of AST.3
 /*
   UPDATE <table>
   SET col1 = val1, col2 = val2... WHERE ...

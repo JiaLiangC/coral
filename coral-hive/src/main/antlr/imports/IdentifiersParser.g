@@ -51,6 +51,7 @@ catch (RecognitionException e) {
 
 //-----------------------------------------------------------------------------------
 
+//AST.260 TOK_GROUPBY  subnode of AST.198
 // group by a,b
 groupByClause
 @init { gParent.pushMsg("group by clause", state); }
@@ -68,6 +69,7 @@ groupByClause
     -> ^(TOK_GROUPBY expression+)
     ;
 
+//AST.261 groupingSetExpression  subnode of AST.260
 groupingSetExpression
 @init {gParent.pushMsg("grouping set expression", state); }
 @after {gParent.popMsg(state); }
@@ -77,6 +79,7 @@ groupingSetExpression
    groupingExpressionSingle
    ;
 
+//AST.262 TOK_GROUPING_SETS_EXPRESSION  subnode of AST.261
 groupingSetExpressionMultiple
 @init {gParent.pushMsg("grouping set part expression", state); }
 @after {gParent.popMsg(state); }
@@ -87,6 +90,7 @@ groupingSetExpressionMultiple
    -> ^(TOK_GROUPING_SETS_EXPRESSION expression*)
    ;
 
+//AST.263 TOK_GROUPING_SETS_EXPRESSION  subnode of AST.261
 groupingExpressionSingle
 @init { gParent.pushMsg("groupingExpression expression", state); }
 @after { gParent.popMsg(state); }
@@ -94,6 +98,7 @@ groupingExpressionSingle
     expression -> ^(TOK_GROUPING_SETS_EXPRESSION expression)
     ;
 
+//AST.264 TOK_HAVING  subnode of AST.198
 havingClause
 @init { gParent.pushMsg("having clause", state); }
 @after { gParent.popMsg(state); }
@@ -101,6 +106,7 @@ havingClause
     KW_HAVING havingCondition -> ^(TOK_HAVING havingCondition)
     ;
 
+//AST.265 expression  subnode of AST.264
 havingCondition
 @init { gParent.pushMsg("having condition", state); }
 @after { gParent.popMsg(state); }
@@ -108,26 +114,31 @@ havingCondition
     expression
     ;
 
+//AST.266 expression  subnode of AST.271
 expressionsInParenthese
     :
     LPAREN expression (COMMA expression)* RPAREN -> expression+
     ;
 
+//AST.267 expression  subnode of AST.271
 expressionsNotInParenthese
     :
     expression (COMMA expression)* -> expression+
     ;
 
+//AST.268 columnRefOrder  subnode of AST.274
 columnRefOrderInParenthese
     :
     LPAREN columnRefOrder (COMMA columnRefOrder)* RPAREN -> columnRefOrder+
     ;
 
+//AST.269 columnRefOrder  subnode of AST.274
 columnRefOrderNotInParenthese
     :
     columnRefOrder (COMMA columnRefOrder)* -> columnRefOrder+
     ;
 
+//AST.270 TOK_ORDERBY  subnode of AST.200
 // order by a,b
 orderByClause
 @init { gParent.pushMsg("order by clause", state); }
@@ -136,6 +147,7 @@ orderByClause
     KW_ORDER KW_BY columnRefOrder ( COMMA columnRefOrder)* -> ^(TOK_ORDERBY columnRefOrder+)
     ;
 
+//AST.271 TOK_CLUSTERBY  subnode of AST.200
 clusterByClause
 @init { gParent.pushMsg("cluster by clause", state); }
 @after { gParent.popMsg(state); }
@@ -148,6 +160,7 @@ clusterByClause
     )
     ;
 
+//AST.272 TOK_DISTRIBUTEBY  subnode of AST.250
 partitionByClause
 @init  { gParent.pushMsg("partition by clause", state); }
 @after { gParent.popMsg(state); }
@@ -160,6 +173,7 @@ partitionByClause
     )
     ;
 
+//AST.273 TOK_DISTRIBUTEBY  subnode of AST.250
 distributeByClause
 @init { gParent.pushMsg("distribute by clause", state); }
 @after { gParent.popMsg(state); }
@@ -172,6 +186,7 @@ distributeByClause
     )
     ;
 
+//AST.274 TOK_SORTBY  subnode of AST.250
 sortByClause
 @init { gParent.pushMsg("sort by clause", state); }
 @after { gParent.popMsg(state); }
@@ -184,6 +199,8 @@ sortByClause
     )
     ;
 
+
+//AST.275 TOK_FUNCTION  subnode of AST.239
 // fun(par1, par2, par3)
 function
 @init { gParent.pushMsg("function specification", state); }
@@ -201,6 +218,7 @@ function
                             -> ^(TOK_FUNCTIONDI functionName (selectExpression+)?)
     ;
 
+//AST.276 functionName  subnode of AST.275
 functionName
 @init { gParent.pushMsg("function name", state); }
 @after { gParent.popMsg(state); }
@@ -212,6 +230,7 @@ functionName
     {!useSQL11ReservedKeywordsForIdentifier()}? sql11ReservedKeywordsUsedAsCastFunctionName -> Identifier[$sql11ReservedKeywordsUsedAsCastFunctionName.text]
     ;
 
+//AST.277 TOK_FUNCTION  subnode of AST.288
 castExpression
 @init { gParent.pushMsg("cast expression", state); }
 @after { gParent.popMsg(state); }
@@ -224,6 +243,7 @@ castExpression
     RPAREN -> ^(TOK_FUNCTION primitiveType expression)
     ;
 
+//AST.278 TOK_FUNCTION  subnode of AST.288
 caseExpression
 @init { gParent.pushMsg("case expression", state); }
 @after { gParent.popMsg(state); }
@@ -234,6 +254,7 @@ caseExpression
     KW_END -> ^(TOK_FUNCTION KW_CASE expression*)
     ;
 
+//AST.279 TOK_FUNCTION  subnode of AST.288
 whenExpression
 @init { gParent.pushMsg("case expression", state); }
 @after { gParent.popMsg(state); }
@@ -244,6 +265,7 @@ whenExpression
     KW_END -> ^(TOK_FUNCTION KW_WHEN expression*)
     ;
 
+//AST.280 constant  subnode of AST.322
 constant
 @init { gParent.pushMsg("constant", state); }
 @after { gParent.popMsg(state); }
@@ -262,11 +284,13 @@ constant
     | booleanValue
     ;
 
+//AST.281 TOK_STRINGLITERALSEQUENCE  subnode of AST.280
 stringLiteralSequence
     :
     StringLiteral StringLiteral+ -> ^(TOK_STRINGLITERALSEQUENCE StringLiteral StringLiteral+)
     ;
 
+//AST.282 TOK_CHARSETLITERAL  subnode of AST.280
 charSetStringLiteral
 @init { gParent.pushMsg("character string literal", state); }
 @after { gParent.popMsg(state); }
@@ -274,6 +298,7 @@ charSetStringLiteral
     csName=CharSetName csLiteral=CharSetLiteral -> ^(TOK_CHARSETLITERAL $csName $csLiteral)
     ;
 
+//AST.283 TOK_FUNCTION  subnode of AST.280
 dateLiteral
     :
     KW_DATE StringLiteral ->
@@ -286,6 +311,7 @@ dateLiteral
     KW_CURRENT_DATE -> ^(TOK_FUNCTION KW_CURRENT_DATE)
     ;
 
+//AST.284 TOK_FUNCTION  subnode of AST.280
 timestampLiteral
     :
     KW_TIMESTAMP StringLiteral ->
@@ -296,6 +322,7 @@ timestampLiteral
     KW_CURRENT_TIMESTAMP -> ^(TOK_FUNCTION KW_CURRENT_TIMESTAMP)
     ;
 
+//AST.285 intervalLiteral  subnode of AST.280
 intervalLiteral
     :
     KW_INTERVAL StringLiteral qualifiers=intervalQualifiers ->
@@ -304,6 +331,7 @@ intervalLiteral
     }
     ;
 
+//AST.286 intervalQualifiers  subnode of AST.285
 intervalQualifiers
     :
     KW_YEAR KW_TO KW_MONTH -> TOK_INTERVAL_YEAR_MONTH_LITERAL
@@ -316,6 +344,7 @@ intervalQualifiers
     | KW_SECOND -> TOK_INTERVAL_SECOND_LITERAL
     ;
 
+//AST.287 expression  subnode of AST.134
 expression
 @init { gParent.pushMsg("expression specification", state); }
 @after { gParent.popMsg(state); }
@@ -323,6 +352,7 @@ expression
     precedenceOrExpression
     ;
 
+//AST.288 atomExpression
 atomExpression
     :
     (KW_NULL) => KW_NULL -> TOK_NULL
@@ -335,28 +365,32 @@ atomExpression
     | LPAREN! expression RPAREN!
     ;
 
-
+//AST.289 TOK_VIRTUAL_TABREF
 precedenceFieldExpression
     :
     atomExpression ((LSQUARE^ expression RSQUARE!) | (DOT^ identifier))*
     ;
 
+//AST.290 precedenceUnaryOperator  subnode of AST.292
 precedenceUnaryOperator
     :
     PLUS | MINUS | TILDE
     ;
 
+//AST.291 TOK_ISNOTNULL  subnode of AST.293
 nullCondition
     :
     KW_NULL -> ^(TOK_ISNULL)
     | KW_NOT KW_NULL -> ^(TOK_ISNOTNULL)
     ;
 
+//AST.292 precedenceUnaryPrefixExpression  subnode of AST.293
 precedenceUnaryPrefixExpression
     :
     (precedenceUnaryOperator^)* precedenceFieldExpression
     ;
 
+//AST.293 TOK_FUNCTION  subnode of AST.295
 precedenceUnarySuffixExpression
     : precedenceUnaryPrefixExpression (a=KW_IS nullCondition)?
     -> {$a != null}? ^(TOK_FUNCTION nullCondition precedenceUnaryPrefixExpression)
@@ -364,43 +398,51 @@ precedenceUnarySuffixExpression
     ;
 
 
+//AST.294 precedenceBitwiseXorOperator  subnode of AST.295
 precedenceBitwiseXorOperator
     :
     BITWISEXOR
     ;
 
+//AST.295 precedenceBitwiseXorExpression  subnode of AST.297
 precedenceBitwiseXorExpression
     :
     precedenceUnarySuffixExpression (precedenceBitwiseXorOperator^ precedenceUnarySuffixExpression)*
     ;
 
 
+//AST.296 precedenceStarOperator  subnode of AST.297
 precedenceStarOperator
     :
     STAR | DIVIDE | MOD | DIV
     ;
 
+//AST.297 precedenceStarOperator  subnode of AST.299
 precedenceStarExpression
     :
     precedenceBitwiseXorExpression (precedenceStarOperator^ precedenceBitwiseXorExpression)*
     ;
 
 
+//AST.298 precedencePlusOperator  subnode of AST.299
 precedencePlusOperator
     :
     PLUS | MINUS
     ;
 
+//AST.299 precedencePlusOperator  subnode of AST.301
 precedencePlusExpression
     :
     precedenceStarExpression (precedencePlusOperator^ precedenceStarExpression)*
     ;
 
+//AST.300 precedenceConcatenateOperator  subnode of AST.301
 precedenceConcatenateOperator
     :
     CONCATENATE
     ;
 
+//AST.301 TOK_FUNCTION  subnode of AST.303
 precedenceConcatenateExpression
     :
     (precedencePlusExpression -> precedencePlusExpression)
@@ -411,45 +453,52 @@ precedenceConcatenateExpression
     -> {$precedenceConcatenateExpression.tree}
     ;
 
-
+//AST.302 precedenceAmpersandOperator  subnode of AST.303
 precedenceAmpersandOperator
     :
     AMPERSAND
     ;
 
+//AST.303 precedenceAmpersandOperator  subnode of AST.305
 precedenceAmpersandExpression
     :
     precedenceConcatenateExpression (precedenceAmpersandOperator^ precedenceConcatenateExpression)*
     ;
 
 
+//AST.304 precedenceBitwiseOrOperator  subnode of AST.305
 precedenceBitwiseOrOperator
     :
     BITWISEOR
     ;
 
+//AST.305 TOK_VIRTUAL_TABREF  subnode of AST.258
 precedenceBitwiseOrExpression
     :
     precedenceAmpersandExpression (precedenceBitwiseOrOperator^ precedenceAmpersandExpression)*
     ;
 
 
+//AST.306 precedenceEqualNegatableOperator  subnode of AST.309
 // Equal operators supporting NOT prefix
 precedenceEqualNegatableOperator
     :
     KW_LIKE | KW_RLIKE | KW_REGEXP
     ;
 
+//AST.307 precedenceEqualOperator  subnode of AST.309
 precedenceEqualOperator
     :
     precedenceEqualNegatableOperator | EQUAL | EQUAL_NS | NOTEQUAL | LESSTHANOREQUALTO | LESSTHAN | GREATERTHANOREQUALTO | GREATERTHAN
     ;
 
+//AST.308 subQueryExpression  subnode of AST.309
 subQueryExpression
     :
     LPAREN! selectStatement[true] RPAREN!
  ;
 
+//AST.309 TOK_SUBQUERY_EXPR  subnode of AST.312
 precedenceEqualExpression
     :
     (left=precedenceBitwiseOrExpression -> $left)
@@ -474,81 +523,95 @@ precedenceEqualExpression
     | (KW_EXISTS LPAREN KW_SELECT)=> (KW_EXISTS subQueryExpression) -> ^(TOK_SUBQUERY_EXPR ^(TOK_SUBQUERY_OP KW_EXISTS) subQueryExpression)
     ;
 
+//AST.310 expressions  subnode of AST.309
 expressions
     :
     LPAREN expression (COMMA expression)* RPAREN -> expression*
     ;
 
+//AST.311 precedenceNotOperator  subnode of AST.312
 precedenceNotOperator
     :
     KW_NOT
     ;
 
+//AST.312 precedenceNotOperator  subnode of AST.314
 precedenceNotExpression
     :
     (precedenceNotOperator^)* precedenceEqualExpression
     ;
 
-
+//AST.313 precedenceAndOperator  subnode of AST.314
 precedenceAndOperator
     :
     KW_AND
     ;
 
+//AST.314 precedenceAndOperator  subnode of AST.316
 precedenceAndExpression
     :
     precedenceNotExpression (precedenceAndOperator^ precedenceNotExpression)*
     ;
 
 
+//AST.315 precedenceOrOperator  subnode of AST.316
 precedenceOrOperator
     :
     KW_OR
     ;
 
+//AST.316 precedenceOrOperator  subnode of AST.297
+//todo 啥意思
 precedenceOrExpression
     :
     precedenceAndExpression (precedenceOrOperator^ precedenceAndExpression)*
     ;
 
-
+//AST.317 booleanValue  subnode of AST.280
 booleanValue
     :
     KW_TRUE^ | KW_FALSE^
     ;
 
+//AST.318 TOK_TAB  subnode of AST.201
 tableOrPartition
    :
    tableName partitionSpec? -> ^(TOK_TAB tableName partitionSpec?)
    ;
 
+//AST.319 TOK_PARTSPEC  subnode of AST.42
 partitionSpec
     :
     KW_PARTITION
      LPAREN partitionVal (COMMA  partitionVal )* RPAREN -> ^(TOK_PARTSPEC partitionVal +)
     ;
 
+//AST.320 TOK_VIRTUAL_TABREF  subnode of AST.319
 partitionVal
     :
     identifier (EQUAL constant)? -> ^(TOK_PARTVAL identifier constant?)
     ;
 
+//AST.321 TOK_PARTSPEC  subnode of AST.61
 dropPartitionSpec
     :
     KW_PARTITION
      LPAREN dropPartitionVal (COMMA  dropPartitionVal )* RPAREN -> ^(TOK_PARTSPEC dropPartitionVal +)
     ;
 
+//AST.322 dropPartitionVal  subnode of AST.321
 dropPartitionVal
     :
     identifier dropPartitionOperator constant -> ^(TOK_PARTVAL identifier dropPartitionOperator constant)
     ;
 
+//AST.323 dropPartitionOperator  subnode of AST.322
 dropPartitionOperator
     :
     EQUAL | NOTEQUAL | LESSTHANOREQUALTO | LESSTHAN | GREATERTHANOREQUALTO | GREATERTHAN
     ;
 
+//AST.324 sysFuncNames  subnode of AST.325
 sysFuncNames
     :
       KW_AND
@@ -594,6 +657,7 @@ sysFuncNames
     | KW_BETWEEN
     ;
 
+//AST.325 descFuncNames  subnode of AST.95
 descFuncNames
     :
       (sysFuncNames) => sysFuncNames
@@ -601,6 +665,7 @@ descFuncNames
     | functionIdentifier
     ;
 
+//AST.326 identifier  subnode of AST.239
 identifier
     :
     Identifier
@@ -610,6 +675,7 @@ identifier
     | {useSQL11ReservedKeywordsForIdentifier()}? sql11ReservedKeywordsUsedAsIdentifier -> Identifier[$sql11ReservedKeywordsUsedAsIdentifier.text]
     ;
 
+//AST.327 functionIdentifier  subnode of AST.325
 functionIdentifier
 @init { gParent.pushMsg("function identifier", state); }
 @after { gParent.popMsg(state); }
@@ -619,6 +685,7 @@ functionIdentifier
     identifier
     ;
 
+//AST.328 principalIdentifier  subnode of AST.122
 principalIdentifier
 @init { gParent.pushMsg("identifier for principal spec", state); }
 @after { gParent.popMsg(state); }
@@ -626,6 +693,7 @@ principalIdentifier
     | QuotedIdentifier
     ;
 
+//AST.329 nonReserved
 //the new version of nonReserved + sql11ReservedKeywordsUsedAsIdentifier = old version of nonReserved
 nonReserved
     :
@@ -649,12 +717,14 @@ nonReserved
     | KW_UNSIGNED | KW_URI | KW_USE | KW_UTC | KW_UTCTIMESTAMP | KW_VALUE_TYPE | KW_VIEW | KW_WHILE | KW_YEAR
     ;
 
+//AST.330 TOK_VIRTUAL_TABREF  subnode of AST.276
 //The following SQL2011 reserved keywords are used as cast function name only, it is a subset of the sql11ReservedKeywordsUsedAsIdentifier.
 sql11ReservedKeywordsUsedAsCastFunctionName
     :
     KW_BIGINT | KW_BINARY | KW_BOOLEAN | KW_CURRENT_DATE | KW_CURRENT_TIMESTAMP | KW_DATE | KW_DOUBLE | KW_FLOAT | KW_INT | KW_SMALLINT | KW_TIMESTAMP
     ;
 
+//AST.331 TOK_VIRTUAL_TABREF  subnode of AST.326
 //The following SQL2011 reserved keywords are used as identifiers in many q tests, they may be added back due to backward compatibility.
 sql11ReservedKeywordsUsedAsIdentifier
     :

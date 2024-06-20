@@ -51,6 +51,7 @@ catch (RecognitionException e) {
 
 //----------------------- Rules for parsing selectClause -----------------------------
 // select a,b,c ...
+//AST.208 TOK_SELECT  subnode of AST.196,198,200
 selectClause
 @init { gParent.pushMsg("select clause", state); }
 @after { gParent.popMsg(state); }
@@ -64,6 +65,7 @@ selectClause
     trfmClause  ->^(TOK_SELECT ^(TOK_SELEXPR trfmClause))
     ;
 
+//AST.209 selectItem  subnode of AST.208
 selectList
 @init { gParent.pushMsg("select list", state); }
 @after { gParent.popMsg(state); }
@@ -71,6 +73,8 @@ selectList
     selectItem ( COMMA  selectItem )* -> selectItem+
     ;
 
+
+//AST.210 TOK_TRANSFORM  subnode of AST.208
 selectTrfmClause
 @init { gParent.pushMsg("transform clause", state); }
 @after { gParent.popMsg(state); }
@@ -83,6 +87,7 @@ selectTrfmClause
     -> ^(TOK_TRANSFORM selectExpressionList $inSerde $inRec StringLiteral $outSerde $outRec aliasList? columnNameTypeList?)
     ;
 
+//AST.211 TOK_HINTLIST  subnode of AST.208
 hintClause
 @init { gParent.pushMsg("hint clause", state); }
 @after { gParent.popMsg(state); }
@@ -90,6 +95,8 @@ hintClause
     DIVIDE STAR PLUS hintList STAR DIVIDE -> ^(TOK_HINTLIST hintList)
     ;
 
+
+//AST.212 hintItem  subnode of AST.211
 hintList
 @init { gParent.pushMsg("hint list", state); }
 @after { gParent.popMsg(state); }
@@ -97,6 +104,7 @@ hintList
     hintItem (COMMA hintItem)* -> hintItem+
     ;
 
+//AST.213 TOK_HINT  subnode of AST.212
 hintItem
 @init { gParent.pushMsg("hint item", state); }
 @after { gParent.popMsg(state); }
@@ -104,6 +112,7 @@ hintItem
     hintName (LPAREN hintArgs RPAREN)? -> ^(TOK_HINT hintName hintArgs?)
     ;
 
+//AST.214 TOK_MAPJOIN  subnode of AST.213
 hintName
 @init { gParent.pushMsg("hint name", state); }
 @after { gParent.popMsg(state); }
@@ -113,6 +122,7 @@ hintName
     | KW_HOLD_DDLTIME -> TOK_HOLD_DDLTIME
     ;
 
+//AST.215 TOK_HINTARGLIST  subnode of AST.213
 hintArgs
 @init { gParent.pushMsg("hint arguments", state); }
 @after { gParent.popMsg(state); }
@@ -120,6 +130,7 @@ hintArgs
     hintArgName (COMMA hintArgName)* -> ^(TOK_HINTARGLIST hintArgName+)
     ;
 
+//AST.216 hintArgName  subnode of AST.215
 hintArgName
 @init { gParent.pushMsg("hint argument name", state); }
 @after { gParent.popMsg(state); }
@@ -127,6 +138,8 @@ hintArgName
     identifier
     ;
 
+
+//AST.217 TOK_SELEXPR  subnode of AST.209
 selectItem
 @init { gParent.pushMsg("selection target", state); }
 @after { gParent.popMsg(state); }
@@ -138,6 +151,7 @@ selectItem
     ) -> ^(TOK_SELEXPR expression identifier*)
     ;
 
+//AST.218 TOK_TRANSFORM  subnode of AST.208
 trfmClause
 @init { gParent.pushMsg("transform clause", state); }
 @after { gParent.popMsg(state); }
@@ -151,6 +165,7 @@ trfmClause
     -> ^(TOK_TRANSFORM selectExpressionList $inSerde $inRec StringLiteral $outSerde $outRec aliasList? columnNameTypeList?)
     ;
 
+//AST.219 selectExpression
 selectExpression
 @init { gParent.pushMsg("select expression", state); }
 @after { gParent.popMsg(state); }
@@ -160,6 +175,7 @@ selectExpression
     expression
     ;
 
+//AST.220 TOK_EXPLIST  subnode of AST.218
 selectExpressionList
 @init { gParent.pushMsg("select expression list", state); }
 @after { gParent.popMsg(state); }
@@ -168,6 +184,7 @@ selectExpressionList
     ;
 
 //---------------------- Rules for windowing clauses -------------------------------
+//AST.221 KW_WINDOW
 window_clause
 @init { gParent.pushMsg("window_clause", state); }
 @after { gParent.popMsg(state); }
@@ -175,6 +192,7 @@ window_clause
   KW_WINDOW window_defn (COMMA window_defn)* -> ^(KW_WINDOW window_defn+)
 ;
 
+//AST.222 TOK_WINDOWDEF  subnode of AST.221
 window_defn
 @init { gParent.pushMsg("window_defn", state); }
 @after { gParent.popMsg(state); }
@@ -182,6 +200,7 @@ window_defn
   Identifier KW_AS window_specification -> ^(TOK_WINDOWDEF Identifier window_specification)
 ;
 
+//AST.223 TOK_WINDOWSPEC  subnode of AST.221
 window_specification
 @init { gParent.pushMsg("window_specification", state); }
 @after { gParent.popMsg(state); }
@@ -189,11 +208,13 @@ window_specification
   (Identifier | ( LPAREN Identifier? partitioningSpec? window_frame? RPAREN)) -> ^(TOK_WINDOWSPEC Identifier? partitioningSpec? window_frame?)
 ;
 
+//AST.224 window_frame  subnode of AST.223
 window_frame :
  window_range_expression |
  window_value_expression
 ;
 
+//AST.225 TOK_WINDOWRANGE  subnode of AST.224
 window_range_expression
 @init { gParent.pushMsg("window_range_expression", state); }
 @after { gParent.popMsg(state); }
@@ -202,6 +223,7 @@ window_range_expression
  KW_ROWS KW_BETWEEN s=window_frame_boundary KW_AND end=window_frame_boundary -> ^(TOK_WINDOWRANGE $s $end)
 ;
 
+//AST.226 TOK_WINDOWVALUES  subnode of AST.224
 window_value_expression
 @init { gParent.pushMsg("window_value_expression", state); }
 @after { gParent.popMsg(state); }
@@ -210,6 +232,7 @@ window_value_expression
  KW_RANGE KW_BETWEEN s=window_frame_boundary KW_AND end=window_frame_boundary -> ^(TOK_WINDOWVALUES $s $end)
 ;
 
+//AST.227 KW_CURRENT  subnode of AST.226
 window_frame_start_boundary
 @init { gParent.pushMsg("windowframestartboundary", state); }
 @after { gParent.popMsg(state); }
@@ -219,6 +242,7 @@ window_frame_start_boundary
   Number KW_PRECEDING -> ^(KW_PRECEDING Number)
 ;
 
+//AST.228 KW_CURRENT  subnode of AST.226
 window_frame_boundary
 @init { gParent.pushMsg("windowframeboundary", state); }
 @after { gParent.popMsg(state); }

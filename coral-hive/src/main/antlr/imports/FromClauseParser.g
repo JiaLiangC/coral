@@ -51,6 +51,7 @@ catch (RecognitionException e) {
 
 //-----------------------------------------------------------------------------------
 
+//AST.229 TOK_ALLCOLREF  subnode of AST.217
 tableAllColumns
     : STAR
         -> ^(TOK_ALLCOLREF)
@@ -59,6 +60,7 @@ tableAllColumns
     ;
 
 // (table|column)
+//AST.230 TOK_TABLE_OR_COL  subnode of AST.205
 tableOrColumn
 @init { gParent.pushMsg("table or column identifier", state); }
 @after { gParent.popMsg(state); }
@@ -66,6 +68,7 @@ tableOrColumn
     identifier -> ^(TOK_TABLE_OR_COL identifier)
     ;
 
+//AST.231 TOK_EXPLIST
 expressionList
 @init { gParent.pushMsg("expression list", state); }
 @after { gParent.popMsg(state); }
@@ -73,6 +76,7 @@ expressionList
     expression (COMMA expression)* -> ^(TOK_EXPLIST expression+)
     ;
 
+//AST.232 TOK_ALIASLIST  subnode of AST.210
 aliasList
 @init { gParent.pushMsg("alias list", state); }
 @after { gParent.popMsg(state); }
@@ -80,8 +84,10 @@ aliasList
     identifier (COMMA identifier)* -> ^(TOK_ALIASLIST identifier+)
     ;
 
+
 //----------------------- Rules for parsing fromClause ------------------------------
 // from [col1, col2, col3] table1, [col4, col5] table2
+//AST.233 TOK_FROM  subnode of AST.194
 fromClause
 @init { gParent.pushMsg("from clause", state); }
 @after { gParent.popMsg(state); }
@@ -89,6 +95,7 @@ fromClause
     KW_FROM joinSource -> ^(TOK_FROM joinSource)
     ;
 
+//AST.234 joinSource  subnode of AST.233
 joinSource
 @init { gParent.pushMsg("join source", state); }
 @after { gParent.popMsg(state); }
@@ -96,12 +103,14 @@ joinSource
     | uniqueJoinToken^ uniqueJoinSource (COMMA! uniqueJoinSource)+
     ;
 
+//AST.235 uniqueJoinSource  subnode of AST.234
 uniqueJoinSource
 @init { gParent.pushMsg("join source", state); }
 @after { gParent.popMsg(state); }
     : KW_PRESERVE? fromSource uniqueJoinExpr
     ;
 
+//AST.236 TOK_EXPLIST  subnode of AST.235
 uniqueJoinExpr
 @init { gParent.pushMsg("unique join expression list", state); }
 @after { gParent.popMsg(state); }
@@ -109,11 +118,14 @@ uniqueJoinExpr
       -> ^(TOK_EXPLIST $e1*)
     ;
 
+//AST.237 uniqueJoinToken  subnode of AST.234
 uniqueJoinToken
 @init { gParent.pushMsg("unique join", state); }
 @after { gParent.popMsg(state); }
     : KW_UNIQUEJOIN -> TOK_UNIQUEJOIN;
 
+
+//AST.238 TOK_JOIN  subnode of AST.234
 joinToken
 @init { gParent.pushMsg("join type specifier", state); }
 @after { gParent.popMsg(state); }
@@ -128,6 +140,7 @@ joinToken
     | KW_LEFT KW_SEMI KW_JOIN      -> TOK_LEFTSEMIJOIN
     ;
 
+//AST.239 TOK_LATERAL_VIEW_OUTER  subnode of AST.200
 lateralView
 @init {gParent.pushMsg("lateral view", state); }
 @after {gParent.popMsg(state); }
@@ -139,6 +152,7 @@ lateralView
 	-> ^(TOK_LATERAL_VIEW ^(TOK_SELECT ^(TOK_SELEXPR function identifier* tableAlias)))
 	;
 
+//AST.240 TOK_TABALIAS  subnode of AST.239
 tableAlias
 @init {gParent.pushMsg("table alias", state); }
 @after {gParent.popMsg(state); }
@@ -146,6 +160,7 @@ tableAlias
     identifier -> ^(TOK_TABALIAS identifier)
     ;
 
+//AST.241 fromSource  subnode of AST.235
 fromSource
 @init { gParent.pushMsg("from source", state); }
 @after { gParent.popMsg(state); }
@@ -153,6 +168,7 @@ fromSource
     ((Identifier LPAREN)=> partitionedTableFunction | tableSource | subQuerySource | virtualTableSource) (lateralView^)*
     ;
 
+//AST.242 TOK_TABLEBUCKETSAMPLE
 tableBucketSample
 @init { gParent.pushMsg("table bucket sample specification", state); }
 @after { gParent.popMsg(state); }
@@ -160,6 +176,7 @@ tableBucketSample
     KW_TABLESAMPLE LPAREN KW_BUCKET (numerator=Number) KW_OUT KW_OF (denominator=Number) (KW_ON expr+=expression (COMMA expr+=expression)*)? RPAREN -> ^(TOK_TABLEBUCKETSAMPLE $numerator $denominator $expr*)
     ;
 
+//AST.243 TOK_TABLESPLITSAMPLE
 splitSample
 @init { gParent.pushMsg("table split sample specification", state); }
 @after { gParent.popMsg(state); }
@@ -172,6 +189,7 @@ splitSample
     -> ^(TOK_TABLESPLITSAMPLE TOK_LENGTH $numerator)
     ;
 
+//AST.245 tableSample
 tableSample
 @init { gParent.pushMsg("table sample specification", state); }
 @after { gParent.popMsg(state); }
@@ -180,6 +198,7 @@ tableSample
     splitSample
     ;
 
+//AST.246 TOK_TABREF  subnode of AST.241
 tableSource
 @init { gParent.pushMsg("table source", state); }
 @after { gParent.popMsg(state); }
@@ -192,6 +211,7 @@ tableSource
     -> ^(TOK_TABREF $tabname $props? $ts? $alias?)
     ;
 
+//AST.247 TOK_TABNAME  subnode of AST.229
 tableName
 @init { gParent.pushMsg("table name", state); }
 @after { gParent.popMsg(state); }
@@ -203,6 +223,7 @@ tableName
     -> ^(TOK_TABNAME $tab)
     ;
 
+//AST.248 TOK_TABNAME  subnode of AST.138
 viewName
 @init { gParent.pushMsg("view name", state); }
 @after { gParent.popMsg(state); }
@@ -211,6 +232,7 @@ viewName
     -> ^(TOK_TABNAME $db? $view)
     ;
 
+//AST.249 TOK_SUBQUERY  subnode of AST.241
 subQuerySource
 @init { gParent.pushMsg("subquery source", state); }
 @after { gParent.popMsg(state); }
@@ -219,6 +241,8 @@ subQuerySource
     ;
 
 //---------------------- Rules for parsing PTF clauses -----------------------------
+
+//AST.250 TOK_PARTITIONINGSPEC  subnode of AST.223
 partitioningSpec
 @init { gParent.pushMsg("partitioningSpec clause", state); }
 @after { gParent.popMsg(state); }
@@ -230,6 +254,7 @@ partitioningSpec
    clusterByClause -> ^(TOK_PARTITIONINGSPEC clusterByClause)
    ;
 
+//AST.251 partitionTableFunctionSource  subnode of AST.252
 partitionTableFunctionSource
 @init { gParent.pushMsg("partitionTableFunctionSource clause", state); }
 @after { gParent.popMsg(state); }
@@ -239,6 +264,7 @@ partitionTableFunctionSource
    partitionedTableFunction
    ;
 
+//AST.252 TOK_PTBLFUNCTION  subnode of AST.251
 partitionedTableFunction
 @init { gParent.pushMsg("ptf clause", state); }
 @after { gParent.popMsg(state); }
@@ -251,6 +277,8 @@ partitionedTableFunction
    ;
 
 //----------------------- Rules for parsing whereClause -----------------------------
+
+//AST.253 BITWISEOR  subnode of AST.198
 // where a=b and ...
 whereClause
 @init { gParent.pushMsg("where clause", state); }
@@ -259,6 +287,7 @@ whereClause
     KW_WHERE searchCondition -> ^(TOK_WHERE searchCondition)
     ;
 
+//AST.254 searchCondition  subnode of AST.253
 searchCondition
 @init { gParent.pushMsg("search condition", state); }
 @after { gParent.popMsg(state); }
@@ -272,11 +301,13 @@ searchCondition
 //in support of SELECT * FROM (VALUES(1,2,3),(4,5,6),...) as FOO(a,b,c) and
 // INSERT INTO <table> (col1,col2,...) VALUES(...),(...),...
 // INSERT INTO <table> (col1,col2,...) SELECT * FROM (VALUES(1,2,3),(4,5,6),...) as Foo(a,b,c)
+//AST.255 TOK_VALUE_ROW  subnode of AST.256
 valueRowConstructor
     :
     LPAREN precedenceUnaryPrefixExpression (COMMA precedenceUnaryPrefixExpression)* RPAREN -> ^(TOK_VALUE_ROW precedenceUnaryPrefixExpression+)
     ;
 
+//AST.256 TOK_VALUES_TABLE  subnode of AST.257
 valuesTableConstructor
     :
     valueRowConstructor (COMMA valueRowConstructor)* -> ^(TOK_VALUES_TABLE valueRowConstructor+)
@@ -287,15 +318,20 @@ VALUES(1),(2) means 2 rows, 1 column each.
 VALUES(1,2),(3,4) means 2 rows, 2 columns each.
 VALUES(1,2,3) means 1 row, 3 columns
 */
+
+//AST.257 TOK_ALLCOLREF  subnode of AST.258
 valuesClause
     :
     KW_VALUES valuesTableConstructor -> valuesTableConstructor
     ;
 
+
+
 /*
 This represents a clause like this:
 (VALUES(1,2),(2,3)) as VirtTable(col1,col2)
 */
+//AST.258 TOK_ALLCOLREF  subnode of AST.241
 virtualTableSource
 	:
 	LPAREN valuesClause RPAREN tableNameColList -> ^(TOK_VIRTUAL_TABLE tableNameColList valuesClause)
@@ -304,6 +340,7 @@ virtualTableSource
 e.g. as VirtTable(col1,col2)
 Note that we only want literals as column names
 */
+//AST.259 TOK_VIRTUAL_TABREF  subnode of AST.258
 tableNameColList
     :
     KW_AS? identifier LPAREN identifier (COMMA identifier)* RPAREN -> ^(TOK_VIRTUAL_TABREF ^(TOK_TABNAME identifier) ^(TOK_COL_NAME identifier+))
