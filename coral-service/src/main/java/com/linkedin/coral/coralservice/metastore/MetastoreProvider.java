@@ -5,6 +5,8 @@
  */
 package com.linkedin.coral.coralservice.metastore;
 
+import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.*;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,8 +25,6 @@ import org.apache.hadoop.security.UserGroupInformation;
 import com.linkedin.coral.common.HiveMetastoreClient;
 import com.linkedin.coral.common.HiveMscAdapter;
 import com.linkedin.coral.coralservice.utils.CoralProvider;
-
-import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.*;
 
 
 /**

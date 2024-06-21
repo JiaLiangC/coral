@@ -5,6 +5,8 @@
  */
 package com.linkedin.coral.coralservice.utils;
 
+import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.UUID;
@@ -17,8 +19,6 @@ import com.linkedin.coral.incremental.RelNodeIncrementalTransformer;
 import com.linkedin.coral.transformers.CoralRelToSqlNodeConverter;
 import com.linkedin.coral.trino.trino2rel.TrinoToRelConverter;
 import com.linkedin.coral.vis.VisualizationUtil;
-
-import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
 
 
 public class VisualizationUtils {

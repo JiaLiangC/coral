@@ -5,14 +5,14 @@
  */
 package com.linkedin.coral.coralservice.utils;
 
+import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
+
 import org.apache.calcite.rel.RelNode;
 
 import com.linkedin.coral.hive.hive2rel.HiveToRelConverter;
 import com.linkedin.coral.spark.CoralSpark;
 import com.linkedin.coral.trino.rel2trino.RelToTrinoConverter;
 import com.linkedin.coral.trino.trino2rel.TrinoToRelConverter;
-
-import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
 
 
 public class TranslationUtils {

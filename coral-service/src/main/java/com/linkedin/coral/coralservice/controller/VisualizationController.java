@@ -5,6 +5,10 @@
  */
 package com.linkedin.coral.coralservice.controller;
 
+import static com.linkedin.coral.coralservice.utils.CommonUtils.*;
+import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
+import static com.linkedin.coral.coralservice.utils.VisualizationUtils.*;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -28,10 +32,6 @@ import com.linkedin.coral.coralservice.entity.VisualizationRequestBody;
 import com.linkedin.coral.coralservice.entity.VisualizationResponseBody;
 import com.linkedin.coral.coralservice.utils.RewriteType;
 import com.linkedin.coral.coralservice.utils.VisualizationUtils;
-
-import static com.linkedin.coral.coralservice.utils.CommonUtils.*;
-import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
-import static com.linkedin.coral.coralservice.utils.VisualizationUtils.*;
 
 
 @RestController

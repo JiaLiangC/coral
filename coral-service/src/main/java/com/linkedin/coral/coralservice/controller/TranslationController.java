@@ -5,6 +5,11 @@
  */
 package com.linkedin.coral.coralservice.controller;
 
+import static com.linkedin.coral.coralservice.utils.CommonUtils.*;
+import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
+import static com.linkedin.coral.coralservice.utils.IncrementalUtils.*;
+import static com.linkedin.coral.coralservice.utils.TranslationUtils.*;
+
 import java.util.List;
 
 import com.google.common.collect.ImmutableMap;
@@ -27,11 +32,6 @@ import com.linkedin.coral.coralservice.entity.IncrementalRequestBody;
 import com.linkedin.coral.coralservice.entity.IncrementalResponseBody;
 import com.linkedin.coral.coralservice.entity.TranslateRequestBody;
 import com.linkedin.coral.coralservice.utils.RewriteType;
-
-import static com.linkedin.coral.coralservice.utils.CommonUtils.*;
-import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
-import static com.linkedin.coral.coralservice.utils.IncrementalUtils.*;
-import static com.linkedin.coral.coralservice.utils.TranslationUtils.*;
 
 
 /**
