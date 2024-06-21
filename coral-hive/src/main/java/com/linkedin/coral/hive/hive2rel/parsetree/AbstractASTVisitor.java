@@ -15,6 +15,11 @@ import com.linkedin.coral.hive.hive2rel.parsetree.parser.HiveParser;
 import com.linkedin.coral.hive.hive2rel.parsetree.parser.Node;
 
 
+/*
+ * 1.hive  的ast 构造完全在antlr3 的.g 文件中进行，很难得到一个标准的ast 结构，只能用hive parser 解析足够多的sql后穷举法，case 为穷举所有hive .g 文件的重写操作符 -> ^
+ * 2.穷举后得到的节点相对原始，再次转换为一个.
+**/
+
 /**
  * Abstract visitor (actually, a walker) to hive AST.
  * This class implements a walker that calls specific named methods
@@ -71,11 +76,13 @@ public abstract class AbstractASTVisitor<R, C> {
       case HiveParser.TOK_TABNAME:
         return visitTabnameNode(node, ctx);
 
+        //标识符
       case HiveParser.KW_CURRENT_DATE:
       case HiveParser.KW_CURRENT_TIMESTAMP:
       case HiveParser.Identifier:
         return visitIdentifier(node, ctx);
 
+        //字面量 为啥分开处理？因为转为calcite的sql node的时候方法不同,这里可以参考trino的ast 构造，字面量也是分开处理
       case HiveParser.StringLiteral:
         return visitStringLiteral(node, ctx);
 

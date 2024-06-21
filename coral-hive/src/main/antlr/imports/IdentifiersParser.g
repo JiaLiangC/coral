@@ -305,12 +305,15 @@ dateLiteral
     {
       // Create DateLiteral token, but with the text of the string value
       // This makes the dateLiteral more consistent with the other type literals.
+      // 创建一个 DateLiteral 节点（token），文本内容为 StringLiteral 的值
       adaptor.create(TOK_DATELITERAL, $StringLiteral.text)
     }
     |
     KW_CURRENT_DATE -> ^(TOK_FUNCTION KW_CURRENT_DATE)
     ;
 
+
+//todo 确定KW_TIMESTAMP是否为节点 adaptor.create的作用
 //AST.284 TOK_FUNCTION  subnode of AST.280
 timestampLiteral
     :
@@ -686,6 +689,7 @@ functionIdentifier
     ;
 
 //AST.328 principalIdentifier  subnode of AST.122
+//todo QuotedIdentifier 是否是节点
 principalIdentifier
 @init { gParent.pushMsg("identifier for principal spec", state); }
 @after { gParent.popMsg(state); }

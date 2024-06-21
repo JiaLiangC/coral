@@ -19,3 +19,4 @@ ligradle
 *.patch
 */metastore_db
 .pyc
+coral_hive_tmp_dir
