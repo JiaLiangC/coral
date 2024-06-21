@@ -1,0 +1,187 @@
+//from
+-> ^(TOK_ALLCOLREF)
+-> ^(TOK_ALLCOLREF tableName)
+-> ^(TOK_TABLE_OR_COL identifier)
+-> ^(TOK_EXPLIST expression+)
+-> ^(TOK_ALIASLIST identifier+)
+-> ^(TOK_FROM joinSource)
+-> ^(TOK_EXPLIST $e1*)
+-> TOK_UNIQUEJOIN;
+-> TOK_JOIN
+-> TOK_JOIN
+-> TOK_JOIN
+-> TOK_CROSSJOIN
+-> TOK_LEFTOUTERJOIN
+-> TOK_RIGHTOUTERJOIN
+-> TOK_FULLOUTERJOIN
+-> TOK_LEFTSEMIJOIN
+-> ^(TOK_LATERAL_VIEW_OUTER ^(TOK_SELECT ^(TOK_SELEXPR function identifier* tableAlias)))
+-> ^(TOK_LATERAL_VIEW ^(TOK_SELECT ^(TOK_SELEXPR function identifier* tableAlias)))
+-> ^(TOK_TABALIAS identifier)
+-> ^(TOK_TABLEBUCKETSAMPLE $numerator $denominator $expr*)
+-> {percent != null}? ^(TOK_TABLESPLITSAMPLE TOK_PERCENT $numerator)
+-> ^(TOK_TABLESPLITSAMPLE TOK_ROWCOUNT $numerator)
+-> ^(TOK_TABLESPLITSAMPLE TOK_LENGTH $numerator)
+-> ^(TOK_TABREF $tabname $props? $ts? $alias?)
+-> ^(TOK_TABNAME $db $tab)
+-> ^(TOK_TABNAME $tab)
+-> ^(TOK_TABNAME $db? $view)
+-> ^(TOK_SUBQUERY queryStatementExpression identifier)
+-> ^(TOK_PARTITIONINGSPEC partitionByClause orderByClause?) |
+-> ^(TOK_PARTITIONINGSPEC orderByClause) |
+-> ^(TOK_PARTITIONINGSPEC distributeByClause sortByClause?) |
+-> ^(TOK_PARTITIONINGSPEC sortByClause) |
+-> ^(TOK_PARTITIONINGSPEC clusterByClause)
+->   ^(TOK_PTBLFUNCTION $name $alias? $ptfsrc $spec? expression*)
+-> ^(TOK_WHERE searchCondition)
+-> ^(TOK_VALUE_ROW precedenceUnaryPrefixExpression+)
+-> ^(TOK_VALUES_TABLE valueRowConstructor+)
+-> valuesTableConstructor
+-> ^(TOK_VIRTUAL_TABLE tableNameColList valuesClause)
+-> ^(TOK_VIRTUAL_TABREF ^(TOK_TABNAME identifier) ^(TOK_COL_NAME identifier+))
+
+
+//identifier
+-> {rollup != null}? ^(TOK_ROLLUP_GROUPBY expression+)
+-> {cube != null}? ^(TOK_CUBE_GROUPBY expression+)
+-> {sets != null}? ^(TOK_GROUPING_SETS expression+ groupingSetExpression+)
+-> ^(TOK_GROUPBY expression+)
+-> ^(TOK_GROUPING_SETS_EXPRESSION expression*)
+-> ^(TOK_GROUPING_SETS_EXPRESSION expression)
+-> ^(TOK_HAVING havingCondition)
+-> expression+
+-> expression+
+-> columnRefOrder+
+-> columnRefOrder+
+-> ^(TOK_ORDERBY columnRefOrder+)
+-> ^(TOK_CLUSTERBY expressionsInParenthese)
+-> ^(TOK_CLUSTERBY expressionsNotInParenthese)
+-> ^(TOK_DISTRIBUTEBY expressionsInParenthese)
+-> ^(TOK_DISTRIBUTEBY expressionsNotInParenthese)
+-> ^(TOK_DISTRIBUTEBY expressionsInParenthese)
+-> ^(TOK_DISTRIBUTEBY expressionsNotInParenthese)
+-> ^(TOK_SORTBY columnRefOrderInParenthese)
+-> ^(TOK_SORTBY columnRefOrderNotInParenthese)
+-> {$star != null}? ^(TOK_FUNCTIONSTAR functionName $ws?)
+-> {$dist == null}? ^(TOK_FUNCTION functionName (selectExpression+)? $ws?)
+-> ^(TOK_FUNCTIONDI functionName (selectExpression+)?)
+-> Identifier[$sql11ReservedKeywordsUsedAsCastFunctionName.text]
+-> ^(TOK_FUNCTION primitiveType expression)
+-> ^(TOK_FUNCTION KW_CASE expression*)
+-> ^(TOK_FUNCTION KW_WHEN expression*)
+-> ^(TOK_STRINGLITERALSEQUENCE StringLiteral StringLiteral+)
+-> ^(TOK_CHARSETLITERAL $csName $csLiteral)
+->
+-> ^(TOK_FUNCTION KW_CURRENT_DATE)
+->
+-> ^(TOK_FUNCTION KW_CURRENT_TIMESTAMP)
+->
+-> TOK_INTERVAL_YEAR_MONTH_LITERAL
+-> TOK_INTERVAL_DAY_TIME_LITERAL
+-> TOK_INTERVAL_YEAR_LITERAL
+-> TOK_INTERVAL_MONTH_LITERAL
+-> TOK_INTERVAL_DAY_LITERAL
+-> TOK_INTERVAL_HOUR_LITERAL
+-> TOK_INTERVAL_MINUTE_LITERAL
+-> TOK_INTERVAL_SECOND_LITERAL
+-> TOK_NULL
+-> ^(TOK_ISNULL)
+-> ^(TOK_ISNOTNULL)
+-> {$a != null}? ^(TOK_FUNCTION nullCondition precedenceUnaryPrefixExpression)
+-> precedenceUnaryPrefixExpression
+-> precedencePlusExpression)
+-> ^(TOK_FUNCTION {adaptor.create(Identifier, "concat")} {$precedenceConcatenateExpression.tree} $plus)
+-> {$precedenceConcatenateExpression.tree}
+-> $left)
+-> ^(KW_NOT ^(precedenceEqualNegatableOperator $precedenceEqualExpression $notExpr))
+-> ^(precedenceEqualOperator $precedenceEqualExpression $equalExpr)
+-> ^(KW_NOT ^(TOK_SUBQUERY_EXPR ^(TOK_SUBQUERY_OP KW_IN) subQueryExpression $precedenceEqualExpression))
+-> ^(KW_NOT ^(TOK_FUNCTION KW_IN $precedenceEqualExpression expressions))
+-> ^(TOK_SUBQUERY_EXPR ^(TOK_SUBQUERY_OP KW_IN) subQueryExpression $precedenceEqualExpression)
+-> ^(TOK_FUNCTION KW_IN $precedenceEqualExpression expressions)
+-> ^(TOK_FUNCTION Identifier["between"] KW_TRUE $left $min $max)
+-> ^(TOK_FUNCTION Identifier["between"] KW_FALSE $left $min $max)
+-> ^(TOK_SUBQUERY_EXPR ^(TOK_SUBQUERY_OP KW_EXISTS) subQueryExpression)
+-> expression*
+-> ^(TOK_TAB tableName partitionSpec?)
+-> ^(TOK_PARTSPEC partitionVal +)
+-> ^(TOK_PARTVAL identifier constant?)
+-> ^(TOK_PARTSPEC dropPartitionVal +)
+-> ^(TOK_PARTVAL identifier dropPartitionOperator constant)
+-> Identifier[$nonReserved.text]
+-> Identifier[$sql11ReservedKeywordsUsedAsIdentifier.text]
+-> Identifier[$db.text + "." + $fn.text]
+
+select
+-> {$transform == null && $dist == null}? ^(TOK_SELECT hintClause? selectList)
+-> {$transform == null && $dist != null}? ^(TOK_SELECTDI hintClause? selectList)
+-> ^(TOK_SELECT hintClause? ^(TOK_SELEXPR selectTrfmClause) )
+->^(TOK_SELECT ^(TOK_SELEXPR trfmClause))
+-> selectItem+
+-> ^(TOK_TRANSFORM selectExpressionList $inSerde $inRec StringLiteral $outSerde $outRec aliasList? columnNameTypeList?)
+-> ^(TOK_HINTLIST hintList)
+-> hintItem+
+-> ^(TOK_HINT hintName hintArgs?)
+-> TOK_MAPJOIN
+-> TOK_STREAMTABLE
+-> TOK_HOLD_DDLTIME
+-> ^(TOK_HINTARGLIST hintArgName+)
+-> ^(TOK_SELEXPR tableAllColumns)
+-> ^(TOK_SELEXPR expression identifier*)
+-> ^(TOK_TRANSFORM selectExpressionList $inSerde $inRec StringLiteral $outSerde $outRec aliasList? columnNameTypeList?)
+-> ^(TOK_EXPLIST selectExpression+)
+-> ^(KW_WINDOW window_defn+)
+-> ^(TOK_WINDOWDEF Identifier window_specification)
+-> ^(TOK_WINDOWSPEC Identifier? partitioningSpec? window_frame?)
+-> ^(TOK_WINDOWRANGE $sb) |
+-> ^(TOK_WINDOWRANGE $s $end)
+-> ^(TOK_WINDOWVALUES $sb) |
+-> ^(TOK_WINDOWVALUES $s $end)
+-> ^(KW_PRECEDING KW_UNBOUNDED) |
+-> ^(KW_CURRENT) |
+-> ^(KW_PRECEDING Number)
+-> ^($r KW_UNBOUNDED) |
+-> ^(KW_CURRENT) |
+-> ^($d Number)
+
+
+Parser.g 2396
+-> ^(TOK_UNIONTYPE colTypeList)
+-> ^(TOK_UNIONALL)
+-> ^(TOK_UNIONDISTINCT)
+->  queryStatementExpressionBody
+-> ^(TOK_CTE cteStatement+)
+-> ^(TOK_SUBQUERY queryStatementExpression identifier)
+-> singleFromStatement)
+-> ^($u {$fromStatement.tree} $r)
+-> {u != null && topLevel}? ^(TOK_QUERY
+-> {$fromStatement.tree}
+-> ^(TOK_QUERY fromClause body+)
+-> {$s.tree}
+-> ^(TOK_QUERY
+->{$selectStatement.tree}: 条件判断 {set == null} 是否为真，如果为真则执行 {$selectStatement.tree}， 返回当前的查询树。
+->{throwSetOpException()}: 如果上述条件都不满足，则调用 throwSetOpException() 方法抛出一个异常。
+-> ^(TOK_QUERY $f? ^(TOK_INSERT ^(TOK_DESTINATION ^(TOK_DIR TOK_TMP_FILE))
+-> {set == null}?
+-> {o==null && c==null && d==null && sort==null && l==null}?
+-> {throwSetOpException()}
+-> {$setOpSelectStatement.tree != null && u.tree.getType()==HiveParser.TOK_UNIONDISTINCT}?
+-> {$setOpSelectStatement.tree != null && u.tree.getType()!=HiveParser.TOK_UNIONDISTINCT}?
+-> {$setOpSelectStatement.tree == null && u.tree.getType()==HiveParser.TOK_UNIONDISTINCT}?
+-> ^(TOK_UNIONALL {$t} $b)
+-> {o==null && c==null && d==null && sort==null && win==null && l==null && !topLevel}?
+-> ^(TOK_QUERY
+-> denotes a rewrite rule in ANTLR 3 that constructs an AST from the parser rule.
+-> ^(TOK_QUERY fromClause? ^(TOK_INSERT ^(TOK_DESTINATION ^(TOK_DIR TOK_TMP_FILE))
+->  selectStatement
+-> ^(TOK_INSERT insertClause
+-> ^(TOK_INSERT ^(TOK_DESTINATION ^(TOK_DIR TOK_TMP_FILE))
+-> ^(TOK_DESTINATION destination ifNotExists?)
+-> ^(TOK_INSERT_INTO tableOrPartition $targetCols?)
+-> ^(TOK_DIR StringLiteral $local? tableRowFormat? tableFileFormat?)
+-> tableOrPartition
+-> ^(TOK_LIMIT $num)
+-> ^(TOK_DELETE_FROM tableName whereClause?)
+-> ^(TOK_SET_COLUMNS_CLAUSE columnAssignmentClause* )
+-> ^(TOK_UPDATE_TABLE tableName setColumnsClause whereClause?)
+

@@ -1,0 +1,16 @@
+//todo 重新梳理出所有 hive1 的语法，以及 coral 没实现的除了DDL以外的语法解析
+//todo 整一个 word 表格，对所有ast 都丢进去 ddl 一列 非ddl 一列 coral 默认的ast实现一列，进行排序比对 标记
+//todo coral 不支持 groupingset 解析
+//todo coral 不支持 hive3 语法 解析
+//todo hive paser 解析的select query 中带insert 子树
+//todo coral 不支持 groupingset 解析
+//todo coral 不支持所有DDL解析
+//todo spark dll支持的比hive少，需要确定哪些不支持
+//todo coral visit 逻辑梳理
+//todo trino visit 逻辑梳理，看看是否可以参考
+//todo coral不支持 离线语法解析，必须依赖 metastore
+//todo coral不支持多条sql 解析，使用use, 不带数据库名的SQL 会解析失败
+//todo 是否要在coral端进行sql 验证, 是否可以跳过验证
+//todo coral 如何在本地运行进行测试，避免因为metastore 连接失败
+//todo 针对所有ast 都增加对应的SQL进行测试,保证覆盖到所有的ast 解析case
+//todo udh view udtf udaf 兼容改写测试
