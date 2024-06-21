@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <!-- This module was also published with a richer model, Gradle metadata,  -->
-    <!-- which should be used instead. Do not delete the following line which  -->
-    <!-- is to indicate to Gradle or any Gradle module metadata file consumer  -->
-    <!-- that they should prefer consuming it instead. -->
-    <!-- do_not_remove: published-with-gradle-metadata -->
+
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.linkedin.coral</groupId>
@@ -15,68 +11,7 @@
     <artifactId>coral-spark</artifactId>
     <version>2.2.34</version>
     <name>coral-spark</name>
-    <description>A library for analyzing, processing, and rewriting views defined in the Hive Metastore, and sharing them across multiple execution engines</description>
-    <url>https://github.com/linkedin/coral</url>
-    <licenses>
-        <license>
-            <name>The MIT License</name>
-            <url>https://github.com/linkedin/coral/blob/master/LICENSE</url>
-            <distribution>repo</distribution>
-        </license>
-    </licenses>
-    <developers>
-        <developer>
-            <id>wmoustafa</id>
-            <name>Walaa Eldin Moustafa</name>
-            <url>https://github.com/wmoustafa</url>
-            <roles>
-                <role>Core developer</role>
-            </roles>
-        </developer>
-        <developer>
-            <id>khaitranq</id>
-            <name>Khai Tranh</name>
-            <url>https://github.com/khaitranq</url>
-            <roles>
-                <role>Core developer</role>
-            </roles>
-        </developer>
-        <developer>
-            <id>funcheetah</id>
-            <name>Wenye Zhang</name>
-            <url>https://github.com/funcheetah</url>
-            <roles>
-                <role>Core developer</role>
-            </roles>
-        </developer>
-        <developer>
-            <id>shardulm94</id>
-            <name>Shardul Mahadik</name>
-            <url>https://github.com/shardulm94</url>
-            <roles>
-                <role>Core developer</role>
-            </roles>
-        </developer>
-        <developer>
-            <id>hotsushi</id>
-            <name>Sushant Raikar</name>
-            <url>https://github.com/hotsushi</url>
-            <roles>
-                <role>Core developer</role>
-            </roles>
-        </developer>
-    </developers>
-    <scm>
-        <url>https://github.com/linkedin/coral.git</url>
-    </scm>
-    <issueManagement>
-        <system>GitHub issues</system>
-        <url>https://github.com/linkedin/coral/issues</url>
-    </issueManagement>
-    <ciManagement>
-        <system>GitHub Actions</system>
-        <url>https://github.com/linkedin/coral/actions</url>
-    </ciManagement>
+
     <dependencies>
         <dependency>
             <groupId>com.linkedin.coral</groupId>
@@ -103,6 +38,7 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_2.11</artifactId>
             <version>2.4.0</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -110,19 +46,19 @@
             <artifactId>hive-exec</artifactId>
             <version>1.2.2</version>
             <classifier>core</classifier>
-            <scope>runtime</scope>
+            <scope>test</scope>
             <exclusions>
                 <exclusion>
-                    <artifactId>slf4j-log4j12</artifactId>
-                    <groupId>*</groupId>
+                    <artifactId>avro-tools</artifactId>
+                    <groupId>org.apache.avro</groupId>
                 </exclusion>
                 <exclusion>
-                    <artifactId>*</artifactId>
-                    <groupId>javax.servlet</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>calcite-core</artifactId>
                     <groupId>org.apache.calcite</groupId>
+                    <artifactId>calcite-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.calcite</groupId>
+                    <artifactId>calcite-avatica</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -132,47 +68,17 @@
             <version>2.7.0</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-mapreduce-client-common</artifactId>
-            <version>2.7.0</version>
-            <scope>test</scope>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.apache.hadoop</groupId>-->
+<!--            <artifactId>hadoop-mapreduce-client-common</artifactId>-->
+<!--            <version>2.7.0</version>-->
+<!--            <scope>test</scope>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>com.esotericsoftware.kryo</groupId>
             <artifactId>kryo</artifactId>
             <version>2.22</version>
-            <scope>runtime</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>slf4j-log4j12</artifactId>
-                    <groupId>*</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>*</artifactId>
-                    <groupId>javax.servlet</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.hive</groupId>
-            <artifactId>hive-metastore</artifactId>
-            <version>1.2.2</version>
-            <scope>compile</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>avro-tools</artifactId>
-                    <groupId>org.apache.avro</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>autometrics-reporter</artifactId>
-                    <groupId>com.linkedin.metastore-autometrics</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>metastore-audit-logging</artifactId>
-                    <groupId>com.linkedin.metastore-audit</groupId>
-                </exclusion>
-            </exclusions>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -189,8 +95,6 @@
                             <goal>antlr</goal>
                         </goals>
                         <configuration>
-                            <!--                            <outputDirectory>${basedir}/src/main/org/compiler/calculator</outputDirectory>-->
-                            <!--                            <sourceDirectory>${basedir}/src/main/antlr4</sourceDirectory>-->
                             <sourceDirectory>${basedir}/src/main/antlr/roots</sourceDirectory>
                             <libDirectory>${project.basedir}/src/main/antlr/imports</libDirectory>
                         </configuration>

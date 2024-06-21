@@ -1,82 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <!-- This module was also published with a richer model, Gradle metadata,  -->
-    <!-- which should be used instead. Do not delete the following line which  -->
-    <!-- is to indicate to Gradle or any Gradle module metadata file consumer  -->
-    <!-- that they should prefer consuming it instead. -->
-    <!-- do_not_remove: published-with-gradle-metadata -->
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.linkedin.coral</groupId>
         <artifactId>coral-parent</artifactId>
         <version>2.2.34</version>
     </parent>
-    <artifactId>shading</artifactId>
+    <artifactId>coral-trino-parser</artifactId>
     <version>2.2.34</version>
-    <name>shading</name>
-    <description>A library for analyzing, processing, and rewriting views defined in the Hive Metastore, and sharing them across multiple execution engines</description>
-    <url>https://github.com/linkedin/coral</url>
-    <licenses>
-        <license>
-            <name>The MIT License</name>
-            <url>https://github.com/linkedin/coral/blob/master/LICENSE</url>
-            <distribution>repo</distribution>
-        </license>
-    </licenses>
-    <scm>
-        <url>https://github.com/linkedin/coral.git</url>
-    </scm>
-    <issueManagement>
-        <system>GitHub issues</system>
-        <url>https://github.com/linkedin/coral/issues</url>
-    </issueManagement>
-    <ciManagement>
-        <system>GitHub Actions</system>
-        <url>https://github.com/linkedin/coral/actions</url>
-    </ciManagement>
-
+    <name>coral-trino-parser</name>
     <dependencies>
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-parser</artifactId>
             <version>355</version>
-            <scope>provided</scope>
         </dependency>
     </dependencies>
-
     <build>
-<!--        <plugins>-->
-<!--            &lt;!&ndash; Maven Shade Plugin to create a shaded jar &ndash;&gt;-->
-<!--            <plugin>-->
-<!--                <groupId>org.apache.maven.plugins</groupId>-->
-<!--                <artifactId>maven-shade-plugin</artifactId>-->
-<!--                <version>3.2.4</version>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <phase>package</phase>-->
-<!--                        <goals>-->
-<!--                            <goal>shade</goal>-->
-<!--                        </goals>-->
-<!--                        <configuration>-->
-<!--                            <shadedArtifactAttached>false</shadedArtifactAttached>-->
-<!--                            <transformers>-->
-<!--                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />-->
-<!--                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">-->
-<!--                                    <mainClass>your.main.Class</mainClass>-->
-<!--                                </transformer>-->
-<!--                            </transformers>-->
-<!--                            <relocations>-->
-<!--                                <relocation>-->
-<!--                                    <pattern>io.trino</pattern>-->
-<!--                                    <shadedPattern>coral.shading.io.trino</shadedPattern>-->
-<!--                                </relocation>-->
-<!--                            </relocations>-->
-<!--                        </configuration>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--            </plugin>-->
-<!--        </plugins>-->
         <plugins>
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
@@ -100,25 +41,10 @@
                                 <include>io.trino:trino-parser</include>
                             </includes>
                         </artifactSet>
-                        <createDependencyReducedPom>false</createDependencyReducedPom>
-                        <minimizeJar>false</minimizeJar>
-                    </configuration>
-                </execution>
-            </executions>
-        </plugin>
 
-        <!-- Maven Jar Plugin for renaming the shaded jar to the original artifact name -->
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-jar-plugin</artifactId>
-            <version>3.2.0</version>
-            <executions>
-                <execution>
-                    <id>default-jar</id>
-                    <phase>package</phase>
-                    <goals>
-                        <goal>jar</goal>
-                    </goals>
+                        <shadedArtifactAttached>true</shadedArtifactAttached>
+                        <shadedClassifierName>shadow</shadedClassifierName>
+                    </configuration>
                 </execution>
             </executions>
         </plugin>
