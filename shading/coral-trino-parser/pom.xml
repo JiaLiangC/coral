@@ -6,6 +6,7 @@
         <groupId>com.linkedin.coral</groupId>
         <artifactId>coral-parent</artifactId>
         <version>2.2.34</version>
+        <relativePath>../../pom.xml</relativePath>
     </parent>
     <artifactId>coral-trino-parser</artifactId>
     <version>2.2.34</version>
