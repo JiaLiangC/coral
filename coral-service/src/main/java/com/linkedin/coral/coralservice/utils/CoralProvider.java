@@ -1,11 +1,14 @@
 /**
- * Copyright 2022-2023 LinkedIn Corporation. All rights reserved.
+ * Copyright 2022-2024 LinkedIn Corporation. All rights reserved.
  * Licensed under the BSD-2 Clause license.
  * See LICENSE in the project root for license information.
  */
 package com.linkedin.coral.coralservice.utils;
 
+import static com.linkedin.coral.coralservice.CoralServiceApplication.*;
+
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.UUID;
@@ -24,8 +27,6 @@ import org.springframework.context.annotation.Configuration;
 import com.linkedin.coral.common.HiveMetastoreClient;
 import com.linkedin.coral.common.HiveMscAdapter;
 import com.linkedin.coral.coralservice.metastore.MetastoreProvider;
-
-import static com.linkedin.coral.coralservice.CoralServiceApplication.*;
 
 
 /**
@@ -48,9 +49,9 @@ public class CoralProvider {
     hiveMetastoreClient = MetastoreProvider.getMetastoreClient(hivePropsLocation);
   }
 
-  public static void initLocalMetastore() throws IOException, HiveException, MetaException {
+  public static void initLocalMetastore(String hiveConfLocation) throws HiveException, MetaException {
     // Create a temporary local metastore
-    conf = loadResourceHiveConf();
+    conf = loadResourceHiveConf(hiveConfLocation);
 
     try {
       // Delete existing local metastore if it exists
@@ -81,10 +82,21 @@ public class CoralProvider {
     }
   }
 
-  public static HiveConf loadResourceHiveConf() {
-    InputStream hiveConfStream = CoralProvider.class.getClassLoader().getResourceAsStream("hive.xml");
+  public static HiveConf loadResourceHiveConf(String hiveConfLocation) {
+    InputStream hiveConfStream = null;
+    try {
+      if (hiveConfLocation.trim().isEmpty()) {
+        hiveConfStream = CoralProvider.class.getClassLoader().getResourceAsStream("hive.xml");
+      } else {
+        hiveConfStream = new FileInputStream(hiveConfLocation);
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
     HiveConf hiveConf = new HiveConf();
-    hiveConf.set(CORAL_SERVICE_DIR, System.getProperty("java.io.tmpdir") + "/coral/service/" + UUID.randomUUID());
+    //    hiveConf.set(CORAL_SERVICE_DIR, System.getProperty("java.io.tmpdir") + "/coral/service/" + UUID.randomUUID());
+    hiveConf.set(CORAL_SERVICE_DIR, "/Users/jialiangcai/szl/prjs/opensource/hadoop_eco/coral/coral_hive_tmp_dir"
+        + "/coral/service/" + UUID.randomUUID());
     hiveConf.addResource(hiveConfStream);
     hiveConf.set("mapreduce.framework.name", "local");
     hiveConf.set("_hive.hdfs.session.path", "/tmp/coral/service");

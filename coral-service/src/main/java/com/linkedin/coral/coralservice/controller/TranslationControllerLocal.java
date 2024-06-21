@@ -5,7 +5,10 @@
  */
 package com.linkedin.coral.coralservice.controller;
 
+import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
+
 import org.apache.hadoop.hive.ql.session.SessionState;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.http.HttpStatus;
@@ -17,8 +20,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import com.linkedin.coral.coralservice.utils.CoralProvider;
 
-import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
-
 
 /**
  * Additional REST endpoints for interacting with the local metastore.
@@ -27,12 +28,14 @@ import static com.linkedin.coral.coralservice.utils.CoralProvider.*;
 @Profile("localMetastore")
 @CrossOrigin(origins = "*", allowedHeaders = "*")
 public class TranslationControllerLocal extends TranslationController {
+  @Value("${hiveConfLocation:}")
+  private String hiveConfLocation;
 
   @Override
   public void onApplicationEvent(ContextRefreshedEvent event) {
     // runs after the Spring context has been initialized
     try {
-      CoralProvider.initLocalMetastore();
+      CoralProvider.initLocalMetastore(hiveConfLocation);
     } catch (Exception e) {
       e.printStackTrace();
     }
