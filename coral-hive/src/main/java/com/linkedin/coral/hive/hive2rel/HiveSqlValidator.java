@@ -21,7 +21,7 @@ import org.apache.calcite.sql.validate.SqlValidatorScope;
 
 import com.linkedin.coral.common.functions.FunctionFieldReferenceOperator;
 
-
+//Calcite合法性校验基于SqlValidator 接口和对应实现类SqlValidatorImpl 完成。
 public class HiveSqlValidator extends SqlValidatorImpl {
 
   public HiveSqlValidator(SqlOperatorTable opTab, CalciteCatalogReader catalogReader, JavaTypeFactory typeFactory,

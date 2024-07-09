@@ -113,6 +113,11 @@ public class CoralSpark {
     return new CoralSpark(baseTables, ImmutableList.copyOf(sparkUDFInfos), sparkSQL, hmsClient, sparkSqlNode);
   }
 
+
+
+
+  //CoralToSparkSqlCallConverter 作用是啥
+
   private static SqlNode constructSparkSqlNode(RelNode sparkRelNode, Set<SparkUDFInfo> sparkUDFInfos) {
     CoralRelToSqlNodeConverter rel2sql = new CoralRelToSqlNodeConverter();
     SqlNode coralSqlNode = rel2sql.convert(sparkRelNode);

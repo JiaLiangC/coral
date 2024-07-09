@@ -23,6 +23,8 @@ import com.linkedin.coral.common.functions.Function;
 import com.linkedin.coral.hive.hive2rel.functions.HiveFunctionResolver;
 
 
+
+//SqlOperatorTable defines a directory interface for enumerating and looking up SQL operators and functions.
 /**
  * Class to resolve Dali function names in SQL definition based on
  * the mapping stored in table parameters in the metastore.
