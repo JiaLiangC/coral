@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
+import com.linkedin.coral.common.calcite.CalciteUtil;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.JoinConditionType;
 import org.apache.calcite.sql.JoinType;
@@ -63,9 +64,12 @@ import com.linkedin.coral.hive.hive2rel.parsetree.parser.ParseException;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.String.format;
+import static org.apache.calcite.sql.fun.SqlStdOperatorTable.*;
 import static org.apache.calcite.sql.parser.SqlParserPos.ZERO;
 
 
+
+//这个类主要的作用就是把hive 的ast 转换为 calcite 的sqlnode
 /**
  * Class to convert Hive Abstract Syntax Tree(AST) represented by {@link ASTNode} to
  * Calcite based AST represented using {@link SqlNode}.
@@ -84,6 +88,8 @@ import static org.apache.calcite.sql.parser.SqlParserPos.ZERO;
  * table name or column name of type struct. This is typically resolved by validators using scope but
  * we haven't specialized that part yet.
  */
+
+ //todo ParseTreeBuilder 中递归getChildrend的逻辑还是不明白
 public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuilder.ParseContext> {
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   private final HiveFunctionResolver functionResolver;
@@ -131,6 +137,14 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     ParseContext ctx = new ParseContext(hiveView);
     return visit(node, ctx);
   }
+
+
+  /*
+   * visit 方法实现了 ASTNode 到 SqlNode 的转换逻辑，
+   * visitChildren 不会转换，具体落到叶子接点上，然后非叶子节点包含children即可
+   *
+   *
+   * */
 
   @Override
   protected SqlNode visitTabAlias(ASTNode node, ParseContext ctx) {
@@ -480,11 +494,85 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     return ctx.orderBy;
   }
 
+
+  //singe group by only one col
   @Override
   protected SqlNode visitGroupBy(ASTNode node, ParseContext ctx) {
     List<SqlNode> grpCols = visitChildren(node, ctx);
     ctx.grpBy = new SqlNodeList(grpCols, ZERO);
     return ctx.grpBy;
+  }
+
+
+  // todo hive 识别到grouping set 后，构造的 ast 中会略去 group by 节点， group by 会被认为是grouping set的特殊情况，
+  // group by  a,b 会构造多个group by ast 节点
+  // 在visitGroupingSets 中很难在sqlnode 中去构造一个 groupby 类型sqlnode
+  protected  SqlNode visitGroupingSets(ASTNode node,  ParseContext ctx){
+
+    if(ctx.grpBy == null){
+      ctx.grpBy = new SqlNodeList(new ArrayList<SqlNode>(), ZERO);
+    }
+
+    List<SqlNode> groupingSets = visitChildren(node, ctx);
+    List<SqlNode> operands = new ArrayList<>();
+    if (groupingSets.isEmpty()) {
+      operands.add(CalciteUtil.createSqlNodeList(Collections.emptyList()));
+    } else  {
+      List<SqlNode> operand = groupingSets.stream()
+              .filter(f -> !(f instanceof SqlIdentifier)) // 过滤掉 SqlIdentifier 类型的节点
+              .collect(Collectors.toList());
+      operands.add(new SqlNodeList(operand, ZERO));
+    }
+    SqlNode groupingSetsNode = GROUPING_SETS.createCall(ZERO, operands);
+    ctx.grpBy.add(groupingSetsNode);
+
+    return groupingSetsNode;
+  }
+
+  protected  SqlNode visitGroupingSetsExpression(ASTNode node, ParseContext ctx){
+    List<SqlNode> identifiers = visitChildren(node, ctx);
+    if (identifiers == null || identifiers.isEmpty()){
+      return  CalciteUtil.createSqlNodeList(Collections.emptyList());
+    }else{
+      return ROW.createCall(ZERO, new SqlNodeList(identifiers, ZERO));
+    }
+  }
+
+  //  SqlNodeList 是sqlnode 的子类
+  protected  SqlNode visitCubeGroupBy(ASTNode node, ParseContext ctx){
+    if(ctx.grpBy == null){
+      ctx.grpBy = new SqlNodeList(new ArrayList<SqlNode>(), ZERO);
+    }
+
+    List<SqlNode> cubeGroupby = visitChildren(node, ctx);
+    List<SqlNode> operands = new ArrayList<>();
+    if (cubeGroupby.isEmpty()) {
+      operands.add(CalciteUtil.createSqlNodeList(Collections.emptyList()));
+    } else  {
+      operands.add(new SqlNodeList(cubeGroupby, ZERO));
+    }
+    SqlNode cubeCall = CUBE.createCall(ZERO, operands);
+    ctx.grpBy.add(cubeCall);
+
+    return cubeCall;
+  }
+
+  protected  SqlNode visitRollUpGroupBy(ASTNode node, ParseContext ctx){
+    if(ctx.grpBy == null){
+      ctx.grpBy = new SqlNodeList(new ArrayList<SqlNode>(), ZERO);
+    }
+
+    List<SqlNode> rollupGroupby = visitChildren(node, ctx);
+    List<SqlNode> operands = new ArrayList<>();
+    if (rollupGroupby.isEmpty()) {
+      operands.add(CalciteUtil.createSqlNodeList(Collections.emptyList()));
+    } else  {
+      operands.add(new SqlNodeList(rollupGroupby, ZERO));
+    }
+    SqlNode rollupCall = ROLLUP.createCall(ZERO, operands);
+    ctx.grpBy.add(rollupCall);
+
+    return rollupCall;
   }
 
   @Override
@@ -637,6 +725,8 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     throw new UnhandledASTTokenException(node);
   }
 
+
+  //todo 这里为啥的names hive 原生的ast 并没有 names 语法
   @Override
   protected SqlNode visitTabnameNode(ASTNode node, ParseContext ctx) {
     List<SqlNode> sqlNodes = visitChildren(node, ctx);
@@ -905,7 +995,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     // First, visit the children to capture all their translation result (in List<SqlNode>)
     // All children are expected to be translated into SqlBasicCall(definition, alias) by visitSubquery
     /** See {@link #visitSubquery(ASTNode, ParseContext) visitSubquery} for details */
-    List<SqlNode> sqlNodeList = visitChildren(node, ctx);
+    List<SqlNode> sqlNodeList =visitChildren (node, ctx);
     // Second, translate the list of SqlBasicCall to list of SqlWithItem
     List<SqlWithItem> withItemList = new ArrayList<>();
     for (SqlNode sqlNode : sqlNodeList) {
@@ -978,6 +1068,12 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
   }
 
   @Override
+  protected SqlNode visitClusterBy(ASTNode node, ParseContext ctx) {
+    return new SqlNodeList(visitChildren(node, ctx), ZERO);
+  }
+
+  //叶子节点
+  @Override
   protected SqlNode visitWindowRange(ASTNode node, ParseContext ctx) {
     // Hive AST:
     //      TOK_WINDOWRANGE  (ROWS ...)
@@ -991,6 +1087,8 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     return new SqlWindow(ZERO, null, null, SqlNodeList.EMPTY, SqlNodeList.EMPTY, null, preceding, following, null);
   }
 
+
+  //叶子节点
   @Override
   protected SqlNode visitWindowValues(ASTNode node, ParseContext ctx) {
     // Hive AST:
@@ -1003,6 +1101,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     return visitWindowRange(node, ctx);
   }
 
+  //叶子节点
   @Override
   protected SqlNode visitPreceding(ASTNode node, ParseContext ctx) {
     SqlNode sqlNode = visitChildren(node, ctx).get(0);
@@ -1013,6 +1112,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     }
   }
 
+  //叶子节点
   @Override
   protected SqlNode visitFollowing(ASTNode node, ParseContext ctx) {
     SqlNode sqlNode = visitChildren(node, ctx).get(0);
@@ -1023,6 +1123,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     }
   }
 
+  //叶子节点
   @Override
   protected SqlNode visitCurrentRow(ASTNode node, ParseContext ctx) {
     return SqlWindow.createCurrentRow(ZERO);
@@ -1033,10 +1134,12 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     return new SqlDataTypeSpec(typeNameSpec, ZERO);
   }
 
+ //非叶子节点
   @Override
   protected SqlNode visitTableTokOrCol(ASTNode node, ParseContext ctx) {
     return visitChildren(node, ctx).get(0);
   }
+
 
   private SqlIntervalQualifier fromASTIntervalTypeToSqlIntervalQualifier(ASTNode node) {
     switch (node.getType()) {
@@ -1060,6 +1163,8 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     throw new UnhandledASTTokenException(node);
   }
 
+
+  //终结符，叶子节点，不可再分
   @Override
   protected SqlNode visitIntervalLiteral(ASTNode node, ParseContext ctx) {
     // Hive Antlr Tree looks like the following:

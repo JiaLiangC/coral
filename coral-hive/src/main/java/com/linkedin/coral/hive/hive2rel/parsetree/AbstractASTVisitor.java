@@ -1,5 +1,5 @@
 /**
- * Copyright 2017-2022 LinkedIn Corporation. All rights reserved.
+ * Copyright 2017-2024 LinkedIn Corporation. All rights reserved.
  * Licensed under the BSD-2 Clause license.
  * See LICENSE in the project root for license information.
  */
@@ -14,11 +14,13 @@ import com.linkedin.coral.hive.hive2rel.parsetree.parser.ASTNode;
 import com.linkedin.coral.hive.hive2rel.parsetree.parser.HiveParser;
 import com.linkedin.coral.hive.hive2rel.parsetree.parser.Node;
 
-
 /*
  * 1.hive  的ast 构造完全在antlr3 的.g 文件中进行，很难得到一个标准的ast 结构，只能用hive parser 解析足够多的sql后穷举法，case 为穷举所有hive .g 文件的重写操作符 -> ^
- * 2.穷举后得到的节点相对原始，再次转换为一个.
+ * 2.穷举后得到的节点都实现visit方法，在ParseTreeBuilder 中转换为 SqlNode
+ * 3. AbstractASTVisitor 的运作模式是 给一个 root节点的树，递归的访问树的所有子节点，遇到一个节点时，判断其AstNode 类型，然后调用对应的visit方法
 **/
+
+//todo 1.
 
 /**
  * Abstract visitor (actually, a walker) to hive AST.
@@ -76,13 +78,13 @@ public abstract class AbstractASTVisitor<R, C> {
       case HiveParser.TOK_TABNAME:
         return visitTabnameNode(node, ctx);
 
-        //标识符
+      //标识符
       case HiveParser.KW_CURRENT_DATE:
       case HiveParser.KW_CURRENT_TIMESTAMP:
       case HiveParser.Identifier:
         return visitIdentifier(node, ctx);
 
-        //字面量 为啥分开处理？因为转为calcite的sql node的时候方法不同,这里可以参考trino的ast 构造，字面量也是分开处理
+      //字面量 为啥分开处理？因为转为calcite的sql node的时候方法不同,这里可以参考trino的ast 构造，字面量也是分开处理
       case HiveParser.StringLiteral:
         return visitStringLiteral(node, ctx);
 
@@ -118,6 +120,18 @@ public abstract class AbstractASTVisitor<R, C> {
 
       case HiveParser.TOK_ORDERBY:
         return visitOrderBy(node, ctx);
+
+      case HiveParser.TOK_GROUPING_SETS:
+        return visitGroupingSets(node,ctx);
+      case HiveParser.TOK_ROLLUP_GROUPBY:
+        return visitRollUpGroupBy(node,ctx);
+      case HiveParser.TOK_CUBE_GROUPBY:
+        return visitCubeGroupBy(node,ctx);
+      case HiveParser.TOK_GROUPING_SETS_EXPRESSION:
+        return visitGroupingSetsExpression(node,ctx);
+
+
+
 
       case HiveParser.TOK_TABSORTCOLNAMEASC:
         return visitSortColNameAsc(node, ctx);
@@ -283,6 +297,9 @@ public abstract class AbstractASTVisitor<R, C> {
       case HiveParser.TOK_DISTRIBUTEBY:
         return visitDistributeBy(node, ctx);
 
+      case HiveParser.TOK_CLUSTERBY:
+        return visitClusterBy(node, ctx);
+
       case HiveParser.TOK_WINDOWRANGE:
         return visitWindowRange(node, ctx);
 
@@ -315,6 +332,9 @@ public abstract class AbstractASTVisitor<R, C> {
     }
   }
 
+
+
+
   protected R visitKeywordLiteral(ASTNode node, C ctx) {
     return visitChildren(node, ctx).get(0);
   }
@@ -328,6 +348,12 @@ public abstract class AbstractASTVisitor<R, C> {
     return visitChildren(node.getChildren(), ctx);
   }
 
+  /*
+   * visitChildren 递归的调用visit 来构造所有的子树
+   * 每个方法传入的ast 返回SqlNode
+   *
+   *
+   */
   protected List<R> visitChildren(List<Node> nodes, C ctx) {
     return nodes.stream().map(n -> visit((ASTNode) n, ctx)).collect(Collectors.toList());
   }
@@ -441,6 +467,20 @@ public abstract class AbstractASTVisitor<R, C> {
     return visitChildren(node, ctx).get(0);
   }
 
+  protected  R visitGroupingSets(ASTNode node, C ctx){
+    return visitChildren(node, ctx).get(0);
+  }
+
+  protected R visitRollUpGroupBy(ASTNode node , C ctx){
+    return visitChildren(node, ctx).get(0);
+  }
+
+  protected  R visitCubeGroupBy(ASTNode node,C ctx){
+    return visitChildren(node, ctx).get(0);
+  }
+  protected  R visitGroupingSetsExpression(ASTNode node, C ctx){
+    return visitChildren(node, ctx).get(0);
+  }
   protected R visitGroupBy(ASTNode node, C ctx) {
     return visitChildren(node, ctx).get(0);
   }
@@ -614,6 +654,10 @@ public abstract class AbstractASTVisitor<R, C> {
   }
 
   protected R visitDistributeBy(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+  protected R visitClusterBy(ASTNode node, C ctx) {
     return visitChildren(node, ctx).get(0);
   }
 
