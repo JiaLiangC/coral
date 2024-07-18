@@ -20,6 +20,7 @@ import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
+import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.calcite.sql.validate.SqlValidator;
@@ -33,7 +34,8 @@ public class HiveNamedStructFunction extends SqlUserDefinedFunction {
   public static final HiveNamedStructFunction NAMED_STRUCT = new HiveNamedStructFunction();
 
   public HiveNamedStructFunction() {
-    super(new SqlIdentifier("named_struct", SqlParserPos.ZERO), null, null, null, null, null);
+    //todo check this change is compatible with coral
+    super(new SqlIdentifier("named_struct", SqlParserPos.ZERO), (SqlReturnTypeInference) null, null, null, null, null);
   }
 
   @Override

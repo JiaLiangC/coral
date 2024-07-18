@@ -68,7 +68,7 @@ public class TypeDerivationUtil {
       final SqlSelect dummySqlSelect = new SqlSelect(topSqlSelectNode.getParserPosition(), null,
           SqlNodeList.of(sqlNode), topSqlSelectNode.getFrom(), topSqlSelectNode.getWhere(), topSqlSelectNode.getGroup(),
           topSqlSelectNode.getHaving(), topSqlSelectNode.getWindowList(), topSqlSelectNode.getOrderList(),
-          topSqlSelectNode.getOffset(), topSqlSelectNode.getFetch());
+          topSqlSelectNode.getOffset(), topSqlSelectNode.getFetch(), topSqlSelectNode.getHints());
 
       try {
         sqlValidator.validate(dummySqlSelect);
@@ -83,7 +83,7 @@ public class TypeDerivationUtil {
     // Previous attempts would try validating dummySqlNode: `SELECT tmp FROM foo WHERE tmp > 5`, which would fail RelDataType derivation.
     try {
       final SqlSelect dummySqlSelect = new SqlSelect(topSelectNodes.get(0).getParserPosition(), null,
-          SqlNodeList.of(sqlNode), topSelectNodes.get(0), null, null, null, null, null, null, null);
+          SqlNodeList.of(sqlNode), topSelectNodes.get(0), null, null, null, null, null, null, null, null);
       sqlValidator.validate(dummySqlSelect);
       return sqlValidator.getValidatedNodeType(sqlNode);
     } catch (Throwable ignored) {

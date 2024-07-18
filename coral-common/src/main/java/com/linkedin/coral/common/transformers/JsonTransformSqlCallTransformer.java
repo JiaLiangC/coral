@@ -5,6 +5,8 @@
  */
 package com.linkedin.coral.common.transformers;
 
+import static com.linkedin.coral.common.calcite.CalciteUtil.*;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,6 +14,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Preconditions;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -29,10 +32,7 @@ import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 
-import com.linkedin.coral.com.google.common.base.Preconditions;
 import com.linkedin.coral.common.functions.FunctionReturnTypes;
-
-import static com.linkedin.coral.common.calcite.CalciteUtil.*;
 
 
 /**

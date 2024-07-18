@@ -5,6 +5,21 @@
  */
 package com.linkedin.coral.common;
 
+import static org.apache.calcite.rel.core.RelFactories.DEFAULT_AGGREGATE_FACTORY;
+import static org.apache.calcite.rel.core.RelFactories.DEFAULT_EXCHANGE_FACTORY;
+import static org.apache.calcite.rel.core.RelFactories.DEFAULT_FILTER_FACTORY;
+import static org.apache.calcite.rel.core.RelFactories.DEFAULT_JOIN_FACTORY;
+import static org.apache.calcite.rel.core.RelFactories.DEFAULT_MATCH_FACTORY;
+import static org.apache.calcite.rel.core.RelFactories.DEFAULT_PROJECT_FACTORY;
+import static org.apache.calcite.rel.core.RelFactories.DEFAULT_REPEAT_UNION_FACTORY;
+import static org.apache.calcite.rel.core.RelFactories.DEFAULT_SET_OP_FACTORY;
+import static org.apache.calcite.rel.core.RelFactories.DEFAULT_SNAPSHOT_FACTORY;
+import static org.apache.calcite.rel.core.RelFactories.DEFAULT_SORT_EXCHANGE_FACTORY;
+import static org.apache.calcite.rel.core.RelFactories.DEFAULT_SORT_FACTORY;
+import static org.apache.calcite.rel.core.RelFactories.DEFAULT_SPOOL_FACTORY;
+import static org.apache.calcite.rel.core.RelFactories.DEFAULT_TABLE_SCAN_FACTORY;
+import static org.apache.calcite.rel.core.RelFactories.DEFAULT_VALUES_FACTORY;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,21 +38,7 @@ import org.apache.calcite.tools.Frameworks;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.Pair;
-
-import static org.apache.calcite.rel.core.RelFactories.DEFAULT_AGGREGATE_FACTORY;
-import static org.apache.calcite.rel.core.RelFactories.DEFAULT_EXCHANGE_FACTORY;
-import static org.apache.calcite.rel.core.RelFactories.DEFAULT_FILTER_FACTORY;
-import static org.apache.calcite.rel.core.RelFactories.DEFAULT_JOIN_FACTORY;
-import static org.apache.calcite.rel.core.RelFactories.DEFAULT_MATCH_FACTORY;
-import static org.apache.calcite.rel.core.RelFactories.DEFAULT_PROJECT_FACTORY;
-import static org.apache.calcite.rel.core.RelFactories.DEFAULT_REPEAT_UNION_FACTORY;
-import static org.apache.calcite.rel.core.RelFactories.DEFAULT_SET_OP_FACTORY;
-import static org.apache.calcite.rel.core.RelFactories.DEFAULT_SNAPSHOT_FACTORY;
-import static org.apache.calcite.rel.core.RelFactories.DEFAULT_SORT_EXCHANGE_FACTORY;
-import static org.apache.calcite.rel.core.RelFactories.DEFAULT_SORT_FACTORY;
-import static org.apache.calcite.rel.core.RelFactories.DEFAULT_SPOOL_FACTORY;
-import static org.apache.calcite.rel.core.RelFactories.DEFAULT_TABLE_SCAN_FACTORY;
-import static org.apache.calcite.rel.core.RelFactories.DEFAULT_VALUES_FACTORY;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 
 /**
@@ -88,8 +89,11 @@ public class HiveRelBuilder extends RelBuilder {
    * @param fieldNames List of desired field names; may contain null values or
    * have fewer fields than the current row type
    */
+
+  //todo 这里取消掉了 rename 的 @Override，对比calcite
   @Override
-  public RelBuilder rename(List<String> fieldNames) {
+  public RelBuilder rename(List<? extends @Nullable String> fieldNames) {
+    //  public RelBuilder rename(List<String> fieldNames) {
     final List<String> oldFieldNames = peek().getRowType().getFieldNames();
     Preconditions.checkArgument(fieldNames.size() <= oldFieldNames.size(), "More names than fields");
     final List<String> newFieldNames = new ArrayList<>(oldFieldNames);

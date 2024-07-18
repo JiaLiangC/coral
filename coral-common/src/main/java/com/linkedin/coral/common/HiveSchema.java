@@ -5,6 +5,8 @@
  */
 package com.linkedin.coral.common;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -18,8 +20,6 @@ import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.schema.*;
 import org.apache.hadoop.hive.metastore.api.Database;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 
 /**

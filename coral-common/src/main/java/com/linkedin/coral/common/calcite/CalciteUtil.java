@@ -5,6 +5,9 @@
  */
 package com.linkedin.coral.common.calcite;
 
+import static java.lang.String.format;
+import static org.apache.calcite.sql.parser.SqlParserPos.ZERO;
+
 import java.util.*;
 
 import org.apache.calcite.avatica.util.Casing;
@@ -15,9 +18,6 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlConformanceEnum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static java.lang.String.format;
-import static org.apache.calcite.sql.parser.SqlParserPos.ZERO;
 
 
 public class CalciteUtil {

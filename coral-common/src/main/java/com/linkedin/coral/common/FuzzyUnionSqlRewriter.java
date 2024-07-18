@@ -175,7 +175,7 @@ public class FuzzyUnionSqlRewriter extends SqlShuttle {
     SqlNode[] castTableOperands = { unionBranch, new SqlIdentifier(tableName, SqlParserPos.ZERO) };
     SqlBasicCall castTableCall = new SqlBasicCall(new SqlAsOperator(), castTableOperands, SqlParserPos.ZERO);
     SqlSelect selectOperator = new SqlSelect(SqlParserPos.ZERO, new SqlNodeList(SqlParserPos.ZERO), projectedFields,
-        castTableCall, null, null, null, null, null, null, null);
+        castTableCall, null, null, null, null, null, null, null, null);
 
     return selectOperator;
   }

@@ -5,9 +5,9 @@
  */
 package com.linkedin.coral.common.transformers;
 
-import org.apache.calcite.sql.SqlCall;
-
 import static com.linkedin.coral.common.calcite.CalciteUtil.*;
+
+import org.apache.calcite.sql.SqlCall;
 
 
 /**

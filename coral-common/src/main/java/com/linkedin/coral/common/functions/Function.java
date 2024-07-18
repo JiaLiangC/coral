@@ -5,11 +5,11 @@
  */
 package com.linkedin.coral.common.functions;
 
+import static org.apache.calcite.sql.parser.SqlParserPos.ZERO;
+
 import java.util.List;
 
 import org.apache.calcite.sql.*;
-
-import static org.apache.calcite.sql.parser.SqlParserPos.ZERO;
 
 
 /**

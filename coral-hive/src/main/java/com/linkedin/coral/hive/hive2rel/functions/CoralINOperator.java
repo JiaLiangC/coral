@@ -101,7 +101,7 @@ public class CoralINOperator extends SqlSpecialOperator {
     // First check that the expressions in the IN list are compatible
     // with each other. Same rules as the VALUES operator (per
     // SQL:2003 Part 2 Section 8.4, <in predicate>).
-    if (null == rightType && validator.isTypeCoercionEnabled()) {
+    if (null == rightType && validator.config().typeCoercionEnabled()) {
       // Do implicit type cast if it is allowed to.
       rightType = validator.getTypeCoercion().getWiderTypeFor(rightTypeList, true);
     }
@@ -114,7 +114,7 @@ public class CoralINOperator extends SqlSpecialOperator {
 
     SqlCallBinding callBinding = new SqlCallBinding(validator, scope, call);
     // Coerce type first.
-    if (callBinding.getValidator().isTypeCoercionEnabled()) {
+    if (callBinding.getValidator().config().typeCoercionEnabled()) {
       boolean coerced = callBinding.getValidator().getTypeCoercion().inOperationCoercion(callBinding);
       if (coerced) {
         // Update the node data type if we coerced any type.

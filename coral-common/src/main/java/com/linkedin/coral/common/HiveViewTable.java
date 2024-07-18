@@ -5,18 +5,18 @@
  */
 package com.linkedin.coral.common;
 
+import static org.apache.calcite.sql.type.SqlTypeName.*;
+
 import java.util.List;
+
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.hadoop.hive.metastore.api.Table;
-
-import com.linkedin.coral.com.google.common.base.Throwables;
-import com.linkedin.coral.com.google.common.collect.ImmutableList;
-
-import static org.apache.calcite.sql.type.SqlTypeName.*;
 
 
 /**

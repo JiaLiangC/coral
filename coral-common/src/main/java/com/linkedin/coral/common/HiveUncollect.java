@@ -33,7 +33,7 @@ public class HiveUncollect extends Uncollect {
   private static final Logger LOGGER = LoggerFactory.getLogger(HiveUncollect.class);
 
   public HiveUncollect(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, boolean withOrdinality) {
-    super(cluster, traitSet, input, withOrdinality);
+    super(cluster, traitSet, input, withOrdinality, null);
   }
 
   public HiveUncollect(RelInput input) {

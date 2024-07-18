@@ -5,23 +5,20 @@
  */
 package com.linkedin.coral.transformers;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.apache.calcite.adapter.jdbc.JdbcTable;
 import org.apache.calcite.config.NullCollation;
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Correlate;
-import org.apache.calcite.rel.core.Join;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.rel.core.Uncollect;
-import org.apache.calcite.rel.core.Values;
+import org.apache.calcite.rel.core.*;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rel.rel2sql.RelToSqlConverter;
+import org.apache.calcite.rel.rel2sql.SqlImplementor;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexCall;
@@ -29,25 +26,13 @@ import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
-import org.apache.calcite.sql.JoinConditionType;
-import org.apache.calcite.sql.JoinType;
-import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlDialect;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlJoin;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLateralOperator;
-import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlUtil;
+import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.linkedin.coral.com.google.common.collect.ImmutableList;
-import com.linkedin.coral.com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.linkedin.coral.common.functions.CoralSqlUnnestOperator;
 import com.linkedin.coral.common.functions.FunctionFieldReferenceOperator;
 
@@ -80,19 +65,19 @@ public class CoralRelToSqlNodeConverter extends RelToSqlConverter {
         .withNullCollation(NullCollation.HIGH);
 
     return new SqlDialect(context) {
-      @Override
-      public boolean requireCastOnString() {
-        /**
-         * The default value is `false`, then Coral will drop `CAST` for RexNode like `CAST(number_string AS BIGINT) > 0`,
-         * which might cause translation quality issue.
-         * For example, without explicit `CAST`, Spark will cast the `number_string` to {@link Integer} implicitly,
-         * but if the value of the number_string is greater than {@link Integer.MAX_VALUE}, the result of the condition is wrong.
-         * Note: Changing the default value to `true` only preserves the existing `CAST` and doesn't introduce new `CAST`.
-         *
-         * Check `CoralSparkTest#testCastOnString` for an example.
-         */
-        return true;
-      }
+//      @Override
+//      public boolean requireCastOnString() {
+//        /**
+//         * The default value is `false`, then Coral will drop `CAST` for RexNode like `CAST(number_string AS BIGINT) > 0`,
+//         * which might cause translation quality issue.
+//         * For example, without explicit `CAST`, Spark will cast the `number_string` to {@link Integer} implicitly,
+//         * but if the value of the number_string is greater than {@link Integer.MAX_VALUE}, the result of the condition is wrong.
+//         * Note: Changing the default value to `true` only preserves the existing `CAST` and doesn't introduce new `CAST`.
+//         *
+//         * Check `CoralSparkTest#testCastOnString` for an example.
+//         */
+//        return true;
+//      }
 
       /**
        * Override this method so that so that table alias is prepended to all field references (e.g., "table.column"
@@ -134,6 +119,44 @@ public class CoralRelToSqlNodeConverter extends RelToSqlConverter {
     };
   }
 
+  private SqlNode castNullType(SqlNode nullLiteral, RelDataType type) {
+    SqlNode typeNode = this.dialect.getCastSpec(type);
+    return (SqlNode)(typeNode == null ? nullLiteral : SqlStdOperatorTable.CAST.createCall(POS, new SqlNode[]{nullLiteral, typeNode}));
+  }
+
+  private void parseCorrelTable(RelNode relNode, SqlImplementor.Result x) {
+    Iterator var3 = relNode.getVariablesSet().iterator();
+
+    while(var3.hasNext()) {
+      CorrelationId id = (CorrelationId)var3.next();
+      this.correlTableMap.put(id, x.qualifiedContext());
+    }
+
+  }
+
+  private static SqlHint toSqlHint(RelHint hint, SqlParserPos pos) {
+    if (hint.kvOptions != null) {
+      return new SqlHint(pos, new SqlIdentifier(hint.hintName, pos), SqlNodeList.of(pos, (List)hint.kvOptions.entrySet().stream().flatMap((e) -> {
+        return Stream.of(new SqlIdentifier((String)e.getKey(), pos), SqlLiteral.createCharString((String)e.getValue(), pos));
+      }).collect(Collectors.toList())), SqlHint.HintOptionFormat.KV_LIST);
+    } else {
+      return hint.listOptions != null ? new SqlHint(pos, new SqlIdentifier(hint.hintName, pos), SqlNodeList.of(pos, (List)hint.listOptions.stream().map((e) -> {
+        return SqlLiteral.createCharString(e, pos);
+      }).collect(Collectors.toList())), SqlHint.HintOptionFormat.LITERAL_LIST) : new SqlHint(pos, new SqlIdentifier(hint.hintName, pos), SqlNodeList.EMPTY, SqlHint.HintOptionFormat.EMPTY);
+    }
+  }
+
+  private static SqlIdentifier getSqlTargetTable(RelNode e) {
+    RelOptTable table = (RelOptTable)Objects.requireNonNull(e.getTable());
+    return (SqlIdentifier)table.maybeUnwrap(JdbcTable.class).map(JdbcTable::tableName).orElseGet(() -> {
+      List<String> qualifiedName = table.getQualifiedName();
+      if (qualifiedName.size() > 2) {
+        qualifiedName = qualifiedName.subList(qualifiedName.size() - 2, qualifiedName.size());
+      }
+      return new SqlIdentifier(qualifiedName, SqlParserPos.ZERO);
+    });
+  }
+
   /**
    * TableScan RelNode represents a relational operator that returns the contents of a table.
    * Super's implementation generates a table namespace with the catalog, schema, and table name.
@@ -153,12 +176,26 @@ public class CoralRelToSqlNodeConverter extends RelToSqlConverter {
    */
   @Override
   public Result visit(TableScan e) {
-    List<String> qualifiedName = e.getTable().getQualifiedName();
-    if (qualifiedName.size() > 2) {
-      qualifiedName = qualifiedName.subList(qualifiedName.size() - 2, qualifiedName.size());
+//    List<String> qualifiedName = e.getTable().getQualifiedName();
+//    if (qualifiedName.size() > 2) {
+//      qualifiedName = qualifiedName.subList(qualifiedName.size() - 2, qualifiedName.size());
+//    }
+//    final SqlIdentifier identifier = new SqlIdentifier(qualifiedName, SqlParserPos.ZERO);
+//    return result(identifier, ImmutableList.of(Clause.FROM), e, null);
+
+    SqlIdentifier identifier = getSqlTargetTable(e);
+    ImmutableList<RelHint> hints = e.getHints();
+    Object node;
+    if (!hints.isEmpty()) {
+      SqlParserPos pos = identifier.getParserPosition();
+      node = new SqlTableRef(pos, identifier, SqlNodeList.of(pos, (List)hints.stream().map((h) -> {
+        return toSqlHint(h, pos);
+      }).collect(Collectors.toList())));
+    } else {
+      node = identifier;
     }
-    final SqlIdentifier identifier = new SqlIdentifier(qualifiedName, SqlParserPos.ZERO);
-    return result(identifier, ImmutableList.of(Clause.FROM), e, null);
+
+    return this.result((SqlNode)node, ImmutableList.of(Clause.FROM), e, (Map)null);
   }
 
   /**
@@ -175,26 +212,54 @@ public class CoralRelToSqlNodeConverter extends RelToSqlConverter {
    */
   @Override
   public Result visit(Project e) {
-    e.getVariablesSet();
-    Result x = visitChild(0, e.getInput());
-    parseCorrelTable(e, x);
-    if (isStar(e.getChildExps(), e.getInput().getRowType(), e.getRowType())) {
-      return x;
-    }
-    final Builder builder = x.builder(e, Clause.SELECT);
-    final List<SqlNode> selectList = new ArrayList<>();
-    for (RexNode ref : e.getChildExps()) {
-      SqlNode sqlExpr = builder.context.toSql(null, ref);
+//    e.getVariablesSet();
+//    Result x = visitChild(0, e.getInput());
+//    parseCorrelTable(e, x);
+//    if (isStar(e.getChildExps(), e.getInput().getRowType(), e.getRowType())) {
+//      return x;
+//    }
+//    final Builder builder = x.builder(e, Clause.SELECT);
+//    final List<SqlNode> selectList = new ArrayList<>();
+//    for (RexNode ref : e.getChildExps()) {
+//      SqlNode sqlExpr = builder.context.toSql(null, ref);
+//
+//      // Append the CAST operator when the derived data type is NON-NULL.
+//      RelDataTypeField targetField = e.getRowType().getFieldList().get(selectList.size());
+//      if (SqlUtil.isNullLiteral(sqlExpr, false) && !targetField.getValue().getSqlTypeName().equals(SqlTypeName.NULL)) {
+//        sqlExpr = SqlStdOperatorTable.CAST.createCall(POS, sqlExpr, dialect.getCastSpec(targetField.getType()));
+//      }
+//
+//      addSelect(selectList, sqlExpr, e.getRowType());
+//    }
+//    builder.setSelect(new SqlNodeList(selectList, POS));
+//    return builder.result();
 
-      // Append the CAST operator when the derived data type is NON-NULL.
-      RelDataTypeField targetField = e.getRowType().getFieldList().get(selectList.size());
-      if (SqlUtil.isNullLiteral(sqlExpr, false) && !targetField.getValue().getSqlTypeName().equals(SqlTypeName.NULL)) {
-        sqlExpr = SqlStdOperatorTable.CAST.createCall(POS, sqlExpr, dialect.getCastSpec(targetField.getType()));
+    SqlImplementor.Result x;
+    if (e.getInput() instanceof Sort) {
+      x = this.visitInput(e, 0);
+    } else {
+      x = this.visitInput(e, 0, new SqlImplementor.Clause[]{Clause.SELECT});
+    }
+
+    this.parseCorrelTable(e, x);
+    SqlImplementor.Builder builder = x.builder(e);
+    if (!isStar(e.getProjects(), e.getInput().getRowType(), e.getRowType())) {
+      List<SqlNode> selectList = new ArrayList();
+
+      SqlNode sqlExpr;
+      for(Iterator var5 = e.getProjects().iterator(); var5.hasNext(); this.addSelect(selectList, sqlExpr, e.getRowType())) {
+        RexNode ref = (RexNode)var5.next();
+        sqlExpr = builder.context.toSql((RexProgram)null, ref);
+        RelDataTypeField targetField = e.getRowType().getFieldList().get(selectList.size());
+        if (SqlUtil.isNullLiteral(sqlExpr, false) && !targetField.getValue().getSqlTypeName().equals(SqlTypeName.NULL)) {
+          RelDataTypeField field = (RelDataTypeField)e.getRowType().getFieldList().get(selectList.size());
+          sqlExpr = this.castNullType(sqlExpr, field.getType());
+        }
       }
 
-      addSelect(selectList, sqlExpr, e.getRowType());
+      builder.setSelect(new SqlNodeList(selectList, POS));
     }
-    builder.setSelect(new SqlNodeList(selectList, POS));
+
     return builder.result();
   }
 
@@ -227,26 +292,26 @@ public class CoralRelToSqlNodeConverter extends RelToSqlConverter {
    *
    *        </pre>
    */
-  @Override
-  public Result visit(Correlate e) {
-    final Result leftResult = visitChild(0, e.getLeft()).resetAlias();
-
-    // Add context specifying correlationId has same context as its left child
-    correlTableMap.put(e.getCorrelationId(), leftResult.qualifiedContext());
-
-    final Result rightResult = visitChild(1, e.getRight()).resetAlias();
-
-    SqlNode rightSqlNode = rightResult.asFrom();
-
-    if (e.getRight() instanceof LogicalTableFunctionScan || e.getRight() instanceof Uncollect) {
-      rightSqlNode = generateRightChildForSqlJoinWithLateralViews(e, rightResult);
-    }
-
-    SqlNode join = new SqlJoin(POS, leftResult.asFrom(), SqlLiteral.createBoolean(false, POS),
-        JoinType.COMMA.symbol(POS), rightSqlNode, JoinConditionType.NONE.symbol(POS), null);
-
-    return result(join, leftResult, rightResult);
-  }
+//  @Override
+//  public Result visit(Correlate e) {
+//    final Result leftResult = visitChild(0, e.getLeft()).resetAlias();
+//
+//    // Add context specifying correlationId has same context as its left child
+//    correlTableMap.put(e.getCorrelationId(), leftResult.qualifiedContext());
+//
+//    final Result rightResult = visitChild(1, e.getRight()).resetAlias();
+//
+//    SqlNode rightSqlNode = rightResult.asFrom();
+//
+//    if (e.getRight() instanceof LogicalTableFunctionScan || e.getRight() instanceof Uncollect) {
+//      rightSqlNode = generateRightChildForSqlJoinWithLateralViews(e, rightResult);
+//    }
+//
+//    SqlNode join = new SqlJoin(POS, leftResult.asFrom(), SqlLiteral.createBoolean(false, POS),
+//        JoinType.COMMA.symbol(POS), rightSqlNode, JoinConditionType.NONE.symbol(POS), null);
+//
+//    return result(join, leftResult, rightResult);
+//  }
 
   /**
    * Custom table-valued functions are represented as LogicalTableFunctionScan type relational expression.
@@ -274,26 +339,26 @@ public class CoralRelToSqlNodeConverter extends RelToSqlConverter {
    *                             Operator: foo_udtf_CountOfRow               Operand: `complex`.`a`
    *         </pre>
    */
-  public Result visit(LogicalTableFunctionScan e) {
-    RexCall call = (RexCall) e.getCall();
-    SqlOperator functionOperator = call.getOperator();
-    final List<SqlNode> functionOperands = new ArrayList<>();
-    for (RexNode rexOperand : call.getOperands()) {
-      RexFieldAccess rexFieldAccess = (RexFieldAccess) rexOperand;
-      RexCorrelVariable rexCorrelVariable = (RexCorrelVariable) rexFieldAccess.getReferenceExpr();
-      SqlNode sqlNodeOperand = correlTableMap.get(rexCorrelVariable.id).toSql(null, rexOperand);
-      functionOperands.add(sqlNodeOperand);
-    }
-
-    SqlCall functionSqlCall = functionOperator.createCall(POS, functionOperands.toArray(new SqlNode[0]));
-
-    SqlNode tableCall = new SqlLateralOperator(SqlKind.COLLECTION_TABLE).createCall(POS, functionSqlCall);
-
-    Result tableCallResultWithAlias = result(tableCall, ImmutableList.of(Clause.FROM), e, null);
-
-    return new Result(tableCall, ImmutableList.of(Clause.FROM), null, e.getRowType(),
-        ImmutableMap.of(tableCallResultWithAlias.neededAlias, e.getRowType()));
-  }
+//  public Result visit(LogicalTableFunctionScan e) {
+//    RexCall call = (RexCall) e.getCall();
+//    SqlOperator functionOperator = call.getOperator();
+//    final List<SqlNode> functionOperands = new ArrayList<>();
+//    for (RexNode rexOperand : call.getOperands()) {
+//      RexFieldAccess rexFieldAccess = (RexFieldAccess) rexOperand;
+//      RexCorrelVariable rexCorrelVariable = (RexCorrelVariable) rexFieldAccess.getReferenceExpr();
+//      SqlNode sqlNodeOperand = correlTableMap.get(rexCorrelVariable.id).toSql(null, rexOperand);
+//      functionOperands.add(sqlNodeOperand);
+//    }
+//
+//    SqlCall functionSqlCall = functionOperator.createCall(POS, functionOperands.toArray(new SqlNode[0]));
+//
+//    SqlNode tableCall = new SqlLateralOperator(SqlKind.COLLECTION_TABLE).createCall(POS, functionSqlCall);
+//
+//    Result tableCallResultWithAlias = result(tableCall, ImmutableList.of(Clause.FROM), e, null);
+//
+//    return new Result(tableCall, ImmutableList.of(Clause.FROM), null, e.getRowType(),
+//        ImmutableMap.of(tableCallResultWithAlias.neededAlias, e.getRowType()));
+//  }
 
   /**
    * Join represents a RelNode with two child relational expressions linked by a join type.
@@ -324,35 +389,35 @@ public class CoralRelToSqlNodeConverter extends RelToSqlConverter {
    *
    *        </pre>
    */
-  @Override
-  public Result visit(Join e) {
-    Result leftResult = this.visitChild(0, e.getLeft()).resetAlias();
-    Result rightResult = this.visitChild(1, e.getRight()).resetAlias();
-    Context leftContext = leftResult.qualifiedContext();
-    Context rightContext = rightResult.qualifiedContext();
-    SqlNode sqlCondition = null;
-    SqlLiteral condType = JoinConditionType.ON.symbol(POS);
-    JoinType joinType = joinType(e.getJoinType());
-
-    if (e.getJoinType() == JoinRelType.INNER && e.getCondition().isAlwaysTrue()) {
-      joinType = dialect.emulateJoinTypeForCrossJoin();
-      condType = JoinConditionType.NONE.symbol(POS);
-    } else {
-      sqlCondition = convertConditionToSqlNode(e.getCondition(), leftContext, rightContext,
-          e.getLeft().getRowType().getFieldCount());
-    }
-
-    SqlNode rightSqlNode = rightResult.asFrom();
-
-    if (e.getRight() instanceof LogicalTableFunctionScan || e.getRight() instanceof Uncollect) {
-      rightSqlNode = generateRightChildForSqlJoinWithLateralViews(e, rightResult);
-    }
-
-    SqlNode join = new SqlJoin(POS, leftResult.asFrom(), SqlLiteral.createBoolean(false, POS), joinType.symbol(POS),
-        rightSqlNode, condType, sqlCondition);
-
-    return result(join, leftResult, rightResult);
-  }
+//  @Override
+//  public Result visit(Join e) {
+//    Result leftResult = this.visitChild(0, e.getLeft()).resetAlias();
+//    Result rightResult = this.visitChild(1, e.getRight()).resetAlias();
+//    Context leftContext = leftResult.qualifiedContext();
+//    Context rightContext = rightResult.qualifiedContext();
+//    SqlNode sqlCondition = null;
+//    SqlLiteral condType = JoinConditionType.ON.symbol(POS);
+//    JoinType joinType = joinType(e.getJoinType());
+//
+//    if (e.getJoinType() == JoinRelType.INNER && e.getCondition().isAlwaysTrue()) {
+//      joinType = dialect.emulateJoinTypeForCrossJoin();
+//      condType = JoinConditionType.NONE.symbol(POS);
+//    } else {
+//      sqlCondition = convertConditionToSqlNode(e.getCondition(), leftContext, rightContext,
+//          e.getLeft().getRowType().getFieldCount());
+//    }
+//
+//    SqlNode rightSqlNode = rightResult.asFrom();
+//
+//    if (e.getRight() instanceof LogicalTableFunctionScan || e.getRight() instanceof Uncollect) {
+//      rightSqlNode = generateRightChildForSqlJoinWithLateralViews(e, rightResult);
+//    }
+//
+//    SqlNode join = new SqlJoin(POS, leftResult.asFrom(), SqlLiteral.createBoolean(false, POS), joinType.symbol(POS),
+//        rightSqlNode, condType, sqlCondition);
+//
+//    return result(join, leftResult, rightResult);
+//  }
 
   /**
    * Uncollect RelNode represents a table function that expands an array/map column into a relation.
@@ -395,37 +460,38 @@ public class CoralRelToSqlNodeConverter extends RelToSqlConverter {
    *
    *        </pre>
    */
-  @Override
-  public Result visit(Uncollect e) {
+//  @Override
+//  public Result visit(Uncollect e) {
+//
+//    // projectResult's SqlNode representation: SELECT `complex`.`c` AS `col` FROM (VALUES  (0)) AS `t` (`ZERO`)
+//    final Result projectResult = visitChild(0, e.getInput());
+//
+//    // Extract column(s) to unnest from projectResult
+//    // to generate simpler operand for UNNEST operator
+//    final List<SqlNode> unnestOperands = new ArrayList<>();
+//
+//    RelDataType recordType = null;
+//    boolean withOrdinality = e.withOrdinality;
+//
+//    for (RexNode unnestCol : ((Project) e.getInput()).getChildExps()) {
+//      unnestOperands.add(projectResult.qualifiedContext().toSql(null, unnestCol));
+//      if (unnestCol.getType().getSqlTypeName().equals(SqlTypeName.ARRAY)
+//          && unnestCol.getType().getComponentType().getSqlTypeName().equals(SqlTypeName.ROW)) {
+//        recordType = unnestCol.getType().getComponentType();
+//      }
+//    }
+//
+//    // Generate SqlCall with Coral's UNNEST Operator and the unnestOperands. Also, persist ordinality and operand's data type
+//    final SqlNode unnestCall =
+//        new CoralSqlUnnestOperator(withOrdinality, recordType).createCall(POS, unnestOperands.toArray(new SqlNode[0]));
+//
+//    // Reuse the same projectResult.neededAlias since that's already unique by directly calling "new Result(...)"
+//    // instead of calling super.result(...), which will generate a new table alias and cause an extra
+//    // "AS" to be added to the generated SQL statement and make it invalid.
+//    return new Result(unnestCall, ImmutableList.of(Clause.FROM), null, e.getRowType(),
+//        ImmutableMap.of(projectResult.neededAlias, e.getRowType()));
+//  }
 
-    // projectResult's SqlNode representation: SELECT `complex`.`c` AS `col` FROM (VALUES  (0)) AS `t` (`ZERO`)
-    final Result projectResult = visitChild(0, e.getInput());
-
-    // Extract column(s) to unnest from projectResult
-    // to generate simpler operand for UNNEST operator
-    final List<SqlNode> unnestOperands = new ArrayList<>();
-
-    RelDataType recordType = null;
-    boolean withOrdinality = e.withOrdinality;
-
-    for (RexNode unnestCol : ((Project) e.getInput()).getChildExps()) {
-      unnestOperands.add(projectResult.qualifiedContext().toSql(null, unnestCol));
-      if (unnestCol.getType().getSqlTypeName().equals(SqlTypeName.ARRAY)
-          && unnestCol.getType().getComponentType().getSqlTypeName().equals(SqlTypeName.ROW)) {
-        recordType = unnestCol.getType().getComponentType();
-      }
-    }
-
-    // Generate SqlCall with Coral's UNNEST Operator and the unnestOperands. Also, persist ordinality and operand's data type
-    final SqlNode unnestCall =
-        new CoralSqlUnnestOperator(withOrdinality, recordType).createCall(POS, unnestOperands.toArray(new SqlNode[0]));
-
-    // Reuse the same projectResult.neededAlias since that's already unique by directly calling "new Result(...)"
-    // instead of calling super.result(...), which will generate a new table alias and cause an extra
-    // "AS" to be added to the generated SQL statement and make it invalid.
-    return new Result(unnestCall, ImmutableList.of(Clause.FROM), null, e.getRowType(),
-        ImmutableMap.of(projectResult.neededAlias, e.getRowType()));
-  }
 
   /**
    * Override this method to avoid the duplicated alias for {@link org.apache.calcite.rel.logical.LogicalValues}.
@@ -445,27 +511,28 @@ public class CoralRelToSqlNodeConverter extends RelToSqlConverter {
    *
    * TODO: Identify and backport the fix from apache-calcite to linkedin-calcite since the duplicated alias issue only happens in linkedin-calcite
    */
-  @Override
-  public Result visit(Values e) {
-    final Result originalResult = super.visit(e);
-    return new Result(originalResult.node, originalResult.clauses, null, originalResult.neededType,
-        originalResult.aliases);
-  }
+//  @Override
+//  public Result visit(Values e) {
+//    final Result originalResult = super.visit(e);
+//    return new Result(originalResult.node, originalResult.clauses, null, originalResult.neededType,
+//        originalResult.aliases);
+//  }
+//
 
-  private SqlNode generateRightChildForSqlJoinWithLateralViews(BiRel e, Result rightResult) {
-    SqlNode rightSqlNode = rightResult.asFrom();
-
-    final SqlNode rightLateral = SqlStdOperatorTable.LATERAL.createCall(POS, rightSqlNode);
-
-    // Append the alias to unnestCall by generating SqlCall with AS operator
-    RelDataType relDataType = e.getRight().getRowType();
-    String alias = rightResult.aliases.entrySet().stream().filter(entry -> relDataType.equals(entry.getValue()))
-        .findFirst().map(Map.Entry::getKey).orElse("coralDefaultColumnAlias");
-
-    List<SqlNode> asOperands = createAsFullOperands(relDataType, rightLateral, alias);
-
-    return SqlStdOperatorTable.AS.createCall(POS, asOperands);
-  }
+//  private SqlNode generateRightChildForSqlJoinWithLateralViews(BiRel e, Result rightResult) {
+//    SqlNode rightSqlNode = rightResult.asFrom();
+//
+//    final SqlNode rightLateral = SqlStdOperatorTable.LATERAL.createCall(POS, rightSqlNode);
+//
+//    // Append the alias to unnestCall by generating SqlCall with AS operator
+//    RelDataType relDataType = e.getRight().getRowType();
+//    String alias = rightResult.aliases.entrySet().stream().filter(entry -> relDataType.equals(entry.getValue()))
+//        .findFirst().map(Map.Entry::getKey).orElse("coralDefaultColumnAlias");
+//
+//    List<SqlNode> asOperands = createAsFullOperands(relDataType, rightLateral, alias);
+//
+//    return SqlStdOperatorTable.AS.createCall(POS, asOperands);
+//  }
 
   /**
    * Override this method to handle the conversion for {@link RexFieldAccess} `f(x).y` where `f` is an operator,

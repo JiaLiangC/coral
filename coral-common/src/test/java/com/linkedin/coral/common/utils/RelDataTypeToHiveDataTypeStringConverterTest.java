@@ -5,6 +5,8 @@
  */
 package com.linkedin.coral.common.utils;
 
+import static org.testng.Assert.*;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -22,8 +24,6 @@ import org.apache.calcite.sql.type.BasicSqlType;
 import org.apache.calcite.sql.type.MapSqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.*;
 
 
 public class RelDataTypeToHiveDataTypeStringConverterTest {

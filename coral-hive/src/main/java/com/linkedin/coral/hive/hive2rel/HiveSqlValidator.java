@@ -16,6 +16,7 @@ import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlConformance;
+import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorImpl;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
@@ -25,9 +26,9 @@ import com.linkedin.coral.common.functions.FunctionFieldReferenceOperator;
 public class HiveSqlValidator extends SqlValidatorImpl {
 
   public HiveSqlValidator(SqlOperatorTable opTab, CalciteCatalogReader catalogReader, JavaTypeFactory typeFactory,
-      SqlConformance conformance) {
-    super(opTab, catalogReader, typeFactory, conformance);
-    setDefaultNullCollation(NullCollation.LOW);
+                          SqlValidator.Config config) {
+    super(opTab, catalogReader, typeFactory, config);
+    //setDefaultNullCollation(NullCollation.LOW);
   }
 
   @Override

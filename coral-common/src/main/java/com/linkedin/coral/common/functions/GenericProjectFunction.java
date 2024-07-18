@@ -7,6 +7,7 @@ package com.linkedin.coral.common.functions;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.*;
+import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
@@ -38,7 +39,8 @@ public class GenericProjectFunction extends SqlUserDefinedFunction {
   private final RelDataType tableDataType;
 
   public GenericProjectFunction(RelDataType tableDataType) {
-    super(new SqlIdentifier("generic_project", SqlParserPos.ZERO), null, null, null, null, null);
+    super(new SqlIdentifier("generic_project", SqlParserPos.ZERO), null, null, null, null, null,
+        SqlFunctionCategory.USER_DEFINED_FUNCTION);
     this.tableDataType = tableDataType;
   }
 
