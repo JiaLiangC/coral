@@ -5,6 +5,7 @@
  */
 package com.linkedin.coral.trino.trino2rel;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,6 +34,7 @@ import com.linkedin.coral.trino.trino2rel.parsetree.ParseTreeBuilder;
 import com.linkedin.coral.trino.trino2rel.parsetree.ParserVisitorContext;
 import com.linkedin.coral.trino.trino2rel.parsetree.TrinoParserDriver;
 
+import static com.linkedin.coral.hive.hive2rel.HiveSqlConformance.HIVE_SQL;
 import static com.linkedin.coral.trino.trino2rel.TrinoSqlConformance.*;
 
 
@@ -49,9 +51,9 @@ public class TrinoToRelConverter extends ToRelConverter {
   private final HiveFunctionResolver functionResolver =
       new HiveFunctionResolver(new StaticHiveFunctionRegistry(), new ConcurrentHashMap<>());
   private final
-  // The validator must be reused
+  // The validator must be reused todo 兼容性修改，未验证
   SqlValidator sqlValidator = new HiveSqlValidator(getOperatorTable(), getCalciteCatalogReader(),
-      ((JavaTypeFactory) getRelBuilder().getTypeFactory()), TRINO_SQL);
+      ((JavaTypeFactory) getRelBuilder().getTypeFactory()), SqlValidator.Config.DEFAULT.withConformance(TRINO_SQL));
 
   public TrinoToRelConverter(HiveMetastoreClient hiveMetastoreClient) {
     super(hiveMetastoreClient);
@@ -73,14 +75,20 @@ public class TrinoToRelConverter extends ToRelConverter {
 
   @Override
   protected SqlOperatorTable getOperatorTable() {
-    return ChainedSqlOperatorTable.of(SqlStdOperatorTable.instance(), new DaliOperatorTable(functionResolver));
+    return new ChainedSqlOperatorTable( Arrays.asList(
+            SqlStdOperatorTable.instance(),
+            new DaliOperatorTable(functionResolver)
+    ));
   }
 
+
+
+//todo 兼容修改，未来验证
   @Override
   protected SqlToRelConverter getSqlToRelConverter() {
     return new TrinoSqlToRelConverter(new TrinoViewExpander(this), getSqlValidator(), getCalciteCatalogReader(),
         RelOptCluster.create(new VolcanoPlanner(), getRelBuilder().getRexBuilder()), getConvertletTable(),
-        SqlToRelConverter.configBuilder().withRelBuilderFactory(HiveRelBuilder.LOGICAL_BUILDER).build());
+        SqlToRelConverter.CONFIG.withRelBuilderFactory(HiveRelBuilder.LOGICAL_BUILDER));
   }
 
   @Override

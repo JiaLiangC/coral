@@ -10,8 +10,8 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.linkedin.coral.com.google.common.base.CaseFormat;
-import com.linkedin.coral.com.google.common.base.Converter;
+import com.google.common.base.CaseFormat;
+import com.google.common.base.Converter;
 import com.linkedin.coral.common.transformers.SqlCallTransformer;
 import com.linkedin.coral.hive.hive2rel.functions.StaticHiveFunctionRegistry;
 

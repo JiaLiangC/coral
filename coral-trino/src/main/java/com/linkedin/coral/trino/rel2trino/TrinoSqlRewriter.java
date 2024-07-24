@@ -8,12 +8,12 @@ package com.linkedin.coral.trino.rel2trino;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 
-import org.apache.calcite.sql.SqlArrayTypeSpec;
+import com.linkedin.coral.common.calcite.sql.SqlArrayTypeSpec;
 import org.apache.calcite.sql.SqlBasicTypeNameSpec;
 import org.apache.calcite.sql.SqlDataTypeSpec;
-import org.apache.calcite.sql.SqlMapTypeSpec;
+import com.linkedin.coral.common.calcite.sql.SqlMapTypeSpec;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlRowTypeSpec;
+import com.linkedin.coral.common.calcite.sql.SqlRowTypeSpec;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.util.SqlShuttle;

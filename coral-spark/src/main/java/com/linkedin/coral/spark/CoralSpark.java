@@ -17,7 +17,7 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
 
-import com.linkedin.coral.com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList;
 import com.linkedin.coral.common.HiveMetastoreClient;
 import com.linkedin.coral.spark.containers.SparkRelInfo;
 import com.linkedin.coral.spark.containers.SparkUDFInfo;
@@ -119,10 +119,17 @@ public class CoralSpark {
   //CoralToSparkSqlCallConverter 作用是啥
 
   private static SqlNode constructSparkSqlNode(RelNode sparkRelNode, Set<SparkUDFInfo> sparkUDFInfos) {
+
+
     CoralRelToSqlNodeConverter rel2sql = new CoralRelToSqlNodeConverter();
     SqlNode coralSqlNode = rel2sql.convert(sparkRelNode);
+
+
+    //使用visitor 模式，进行转换，这里有两层 1.SparkSqlRewriter 继承sqlshuttle  2.继承SqlShuttle 包装一层 sql transformer
     SqlNode sparkSqlNode = coralSqlNode.accept(new CoralSqlNodeToSparkSqlNodeConverter())
         .accept(new CoralToSparkSqlCallConverter(sparkUDFInfos));
+
+
     return sparkSqlNode.accept(new SparkSqlRewriter());
   }
 

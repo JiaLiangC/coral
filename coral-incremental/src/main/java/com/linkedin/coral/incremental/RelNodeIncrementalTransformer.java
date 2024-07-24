@@ -42,7 +42,9 @@ public class RelNodeIncrementalTransformer {
         incrementalNames.add(deltaTableName);
         RelOptTable incrementalTable =
             RelOptTableImpl.create(originalTable.getRelOptSchema(), originalTable.getRowType(), incrementalNames, null);
-        return LogicalTableScan.create(scan.getCluster(), incrementalTable);
+        //todo 兼容性修改待验证
+        return LogicalTableScan.create(scan.getCluster(), incrementalTable,null);
+
       }
 
       @Override
@@ -72,7 +74,8 @@ public class RelNodeIncrementalTransformer {
       @Override
       public RelNode visit(LogicalProject project) {
         RelNode transformedChild = convertRelIncremental(project.getInput());
-        return LogicalProject.create(transformedChild, project.getProjects(), project.getRowType());
+        //todo 兼容性修改，待验证
+        return LogicalProject.create(transformedChild, null,project.getProjects(), project.getRowType());
       }
 
       @Override
@@ -95,15 +98,17 @@ public class RelNodeIncrementalTransformer {
 
   private static LogicalProject createProjectOverJoin(LogicalJoin join, RelNode left, RelNode right,
       RexBuilder rexBuilder) {
+    //todo 兼容性修改，待验证
     LogicalJoin incrementalJoin =
-        LogicalJoin.create(left, right, join.getCondition(), join.getVariablesSet(), join.getJoinType());
+        LogicalJoin.create(left, right,null, join.getCondition(), join.getVariablesSet(), join.getJoinType());
     ArrayList<RexNode> projects = new ArrayList<>();
     ArrayList<String> names = new ArrayList<>();
     IntStream.range(0, incrementalJoin.getRowType().getFieldList().size()).forEach(i -> {
       projects.add(rexBuilder.makeInputRef(incrementalJoin, i));
       names.add(incrementalJoin.getRowType().getFieldNames().get(i));
     });
-    return LogicalProject.create(incrementalJoin, projects, names);
+    //todo 兼容性修改，待验证
+    return LogicalProject.create(incrementalJoin, null,projects, names);
   }
 
 }

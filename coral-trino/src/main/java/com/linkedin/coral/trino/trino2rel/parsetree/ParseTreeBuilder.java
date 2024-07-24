@@ -28,6 +28,11 @@ import com.linkedin.coral.common.HiveTypeSystem;
 import com.linkedin.coral.common.calcite.CalciteUtil;
 
 import coral.shading.io.trino.sql.tree.*;
+import com.linkedin.coral.common.calcite.sql.SqlArrayTypeSpec;
+
+import com.linkedin.coral.common.calcite.sql.SqlMapTypeSpec;
+import com.linkedin.coral.common.calcite.sql.SqlRowTypeSpec;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import static com.linkedin.coral.common.calcite.CalciteUtil.*;
 import static java.lang.String.format;
@@ -300,7 +305,7 @@ public class ParseTreeBuilder extends AstVisitor<SqlNode, ParserVisitorContext> 
     SqlNode limit = processOptional(node.getLimit(), context);
     SqlNode offset = processOptional(node.getOffset(), context);
     SqlSelect select =
-        new SqlSelect(getPos(node), keywords, selectList, from, where, groupBy, having, null, null, null, null);
+        new SqlSelect(getPos(node), keywords, selectList, from, where, groupBy, having, null, null, null,null,null);
     if (!orderBy.getList().isEmpty() || offset != null || limit != null) {
       return new SqlOrderBy(getPos(node), select, orderBy, offset, limit);
     }

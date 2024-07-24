@@ -19,8 +19,9 @@ import static com.linkedin.coral.hive.hive2rel.functions.TimestampFromUnixtime.T
 public class TrinoSqlDialect extends SqlDialect {
   private static final String IDENTIFIER_QUOTE_STRING = "\"";
 
+  //todo 兼容性修改，未验证
   public static final TrinoSqlDialect INSTANCE =
-      new TrinoSqlDialect(emptyContext().withDatabaseProduct(DatabaseProduct.UNKNOWN).withDatabaseProductName("Trino")
+      new TrinoSqlDialect(SqlDialect.EMPTY_CONTEXT.withDatabaseProduct(DatabaseProduct.UNKNOWN).withDatabaseProductName("Trino")
           .withIdentifierQuoteString(IDENTIFIER_QUOTE_STRING).withNullCollation(NullCollation.HIGH));
 
   private TrinoSqlDialect(Context context) {
@@ -94,7 +95,7 @@ public class TrinoSqlDialect extends SqlDialect {
     return IDENTIFIER_QUOTE_STRING + name + IDENTIFIER_QUOTE_STRING;
   }
 
-  @Override
+//  @Override
   public void unparseIdentifier(SqlWriter writer, SqlIdentifier identifier) {
     final SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.IDENTIFIER);
     for (int i = 0; i < identifier.names.size(); i++) {

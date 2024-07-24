@@ -43,6 +43,8 @@ import static com.linkedin.coral.hive.hive2rel.functions.TimestampFromUnixtime.T
 import static org.apache.calcite.sql.fun.SqlLibraryOperators.*;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.*;
 import static org.apache.calcite.sql.type.OperandTypes.*;
+import static org.apache.calcite.sql.type.OperandTypes.ARRAY;
+import static org.apache.calcite.sql.type.OperandTypes.DATETIME;
 import static org.apache.calcite.sql.type.ReturnTypes.*;
 import static org.apache.calcite.sql.type.ReturnTypes.DATE;
 

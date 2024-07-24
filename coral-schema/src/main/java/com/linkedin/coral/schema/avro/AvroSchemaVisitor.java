@@ -10,8 +10,8 @@ import java.util.List;
 
 import org.apache.avro.Schema;
 
-import com.linkedin.coral.com.google.common.base.Preconditions;
-import com.linkedin.coral.com.google.common.collect.Lists;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 
 public abstract class AvroSchemaVisitor<T> {

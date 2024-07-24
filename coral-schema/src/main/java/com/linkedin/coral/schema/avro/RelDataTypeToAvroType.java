@@ -27,7 +27,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.codehaus.jackson.node.JsonNodeFactory;
 
-import com.linkedin.coral.com.google.common.base.Preconditions;
+import com.google.common.base.Preconditions;
 
 
 /**

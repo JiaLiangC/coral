@@ -17,7 +17,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 
-import com.linkedin.coral.com.google.common.base.Preconditions;
+import com.google.common.base.Preconditions;
 import com.linkedin.coral.common.functions.FunctionReturnTypes;
 import com.linkedin.coral.common.transformers.SqlCallTransformer;
 import com.linkedin.coral.hive.hive2rel.functions.StaticHiveFunctionRegistry;

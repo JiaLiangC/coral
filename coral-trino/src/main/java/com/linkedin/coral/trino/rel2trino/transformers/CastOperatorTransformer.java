@@ -17,7 +17,7 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.linkedin.coral.com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet;
 import com.linkedin.coral.common.calcite.CalciteUtil;
 import com.linkedin.coral.common.transformers.SqlCallTransformer;
 import com.linkedin.coral.common.utils.TypeDerivationUtil;
@@ -26,6 +26,8 @@ import static org.apache.calcite.sql.parser.SqlParserPos.*;
 import static org.apache.calcite.sql.type.ReturnTypes.*;
 import static org.apache.calcite.sql.type.SqlTypeName.*;
 import static org.apache.calcite.sql.type.SqlTypeName.DOUBLE;
+import static org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP;
+import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
 
 
 /**
@@ -61,7 +63,7 @@ public class CastOperatorTransformer extends SqlCallTransformer {
   private static final String TO_UNIXTIME = "to_unixtime";
   private static final Set<SqlTypeName> BINARY_SQL_TYPE_NAMES =
       ImmutableSet.of(SqlTypeName.VARBINARY, SqlTypeName.BINARY);
-  private static final Set<SqlTypeName> CHAR_SQL_TYPE_NAMES = ImmutableSet.of(SqlTypeName.VARCHAR, SqlTypeName.CHAR);
+  private static final Set<SqlTypeName> CHAR_SQL_TYPE_NAMES = ImmutableSet.of(VARCHAR, SqlTypeName.CHAR);
 
   public CastOperatorTransformer(TypeDerivationUtil typeDerivationUtil) {
     super(typeDerivationUtil);

@@ -10,7 +10,7 @@ import java.util.Set;
 
 import org.apache.calcite.sql.SqlCall;
 
-import com.linkedin.coral.com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList;
 import com.linkedin.coral.common.functions.GenericProjectFunction;
 import com.linkedin.coral.common.transformers.SqlCallTransformer;
 import com.linkedin.coral.spark.containers.SparkUDFInfo;

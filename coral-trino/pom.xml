@@ -14,6 +14,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.12.0</version>
+        </dependency>
+        <dependency>
             <groupId>com.linkedin.coral</groupId>
             <artifactId>coral-hive</artifactId>
             <version>2.2.34</version>

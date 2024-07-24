@@ -24,7 +24,8 @@ public class HiveSqlNodeToCoralSqlNodeConverter extends SqlShuttle {
 
   public HiveSqlNodeToCoralSqlNodeConverter(SqlValidator sqlValidator, SqlNode topSqlNode) {
     TypeDerivationUtil typeDerivationUtil = new TypeDerivationUtil(sqlValidator, topSqlNode);
-    operatorTransformerList = SqlCallTransformers.of(new ShiftArrayIndexTransformer(typeDerivationUtil),
+    operatorTransformerList = SqlCallTransformers.of(
+            new ShiftArrayIndexTransformer(typeDerivationUtil),
         new SingleUnionFieldReferenceTransformer(typeDerivationUtil));
   }
 

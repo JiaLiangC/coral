@@ -13,11 +13,12 @@ import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
+import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 
-import com.linkedin.coral.com.google.common.base.Preconditions;
+import com.google.common.base.Preconditions;
 
 
 /**
@@ -39,7 +40,8 @@ abstract class GenericTemplateFunction extends SqlUserDefinedFunction {
   private final RelDataType genericDataType;
 
   public GenericTemplateFunction(RelDataType genericDataType, String functionName) {
-    super(new SqlIdentifier(functionName, SqlParserPos.ZERO), null, null, null, null, null);
+    //todo 兼容性修改，待验证
+    super(new SqlIdentifier(functionName, SqlParserPos.ZERO), (SqlReturnTypeInference) null, null, null, null, null);
     this.genericDataType = genericDataType;
   }
 

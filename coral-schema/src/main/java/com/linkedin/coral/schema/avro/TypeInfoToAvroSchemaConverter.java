@@ -26,7 +26,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.UnionTypeInfo;
 import org.codehaus.jackson.node.JsonNodeFactory;
 
-import com.linkedin.coral.com.google.common.collect.Lists;
+import com.google.common.collect.Lists;
 
 
 /**

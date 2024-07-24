@@ -5,16 +5,16 @@
  */
 package com.linkedin.coral.spark;
 
-import org.apache.calcite.sql.SqlArrayTypeSpec;
+import  com.linkedin.coral.common.calcite.sql.SqlArrayTypeSpec;
 import org.apache.calcite.sql.SqlBasicTypeNameSpec;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.SqlMapTypeSpec;
+import  com.linkedin.coral.common.calcite.sql.SqlMapTypeSpec;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlRowTypeSpec;
+import com.linkedin.coral.common.calcite.sql.SqlRowTypeSpec;
 import org.apache.calcite.sql.SqlTypeNameSpec;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -86,7 +86,8 @@ public class SparkSqlRewriter extends SqlShuttle {
       final SqlParserPos parserPos = type.getParserPosition();
       switch (type.getTypeName().toString()) {
         case "VARCHAR":
-          final SqlBasicTypeNameSpec stringTypeName = new SqlBasicTypeNameSpec("STRING", SqlTypeName.VARCHAR, -1,
+          //todo 兼容性修复，未验证
+          final SqlBasicTypeNameSpec stringTypeName = new SqlBasicTypeNameSpec(SqlTypeName.VARCHAR, -1,
               basicTypeNameSpec.getScale(), basicTypeNameSpec.getCharSetName(), parserPos);
           return new SqlDataTypeSpec(stringTypeName, type.getTimeZone(), parserPos);
         default:

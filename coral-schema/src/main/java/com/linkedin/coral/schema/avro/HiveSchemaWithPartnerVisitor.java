@@ -14,7 +14,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.UnionTypeInfo;
 
-import com.linkedin.coral.com.google.common.collect.Lists;
+import com.google.common.collect.Lists;
 
 
 /**

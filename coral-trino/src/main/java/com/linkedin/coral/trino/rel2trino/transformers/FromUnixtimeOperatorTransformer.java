@@ -18,6 +18,7 @@ import com.linkedin.coral.common.transformers.SqlCallTransformer;
 
 import static org.apache.calcite.sql.type.ReturnTypes.*;
 import static org.apache.calcite.sql.type.SqlTypeName.*;
+import static org.apache.calcite.sql.type.SqlTypeName.TIMESTAMP;
 
 
 /**

@@ -27,6 +27,8 @@ import java.util.stream.Collectors;
 import com.google.gson.Gson;
 
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Filter;
+import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -400,7 +402,22 @@ public class SparkPlanToIRRelConverter {
     }
     String sql = "SELECT * FROM " + databaseName + "." + tableName + " WHERE " + modifiedFilterCondition;
     RelNode convertedNode = hiveToRelConverter.convertSql(sql);
-    return convertedNode.getInput(0).getChildExps().get(0);
+
+    //todo 兼容性修改待验证
+    if (convertedNode instanceof Filter) {
+      Filter filterNode = (Filter) convertedNode;
+      return filterNode.getCondition();
+    } else if (convertedNode instanceof Project) {
+      // 如果是 Project 节点，我们需要检查它的输入是否为 Filter
+      RelNode input = convertedNode.getInput(0);
+      if (input instanceof Filter) {
+        Filter filterNode = (Filter) input;
+        return filterNode.getCondition();
+      }
+    }
+
+    throw new IllegalStateException("Unable to find filter condition in converted RelNode");
+    //return convertedNode.getInput(0).getChildExps().get(0);
   }
 
   /**
