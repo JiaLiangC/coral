@@ -27,7 +27,7 @@ import org.apache.commons.lang3.ObjectUtils;
 import com.linkedin.coral.common.HiveTypeSystem;
 import com.linkedin.coral.common.calcite.CalciteUtil;
 
-import coral.shading.io.trino.sql.tree.*;
+import io.trino.sql.tree.*;
 import com.linkedin.coral.common.calcite.sql.SqlArrayTypeSpec;
 
 import com.linkedin.coral.common.calcite.sql.SqlMapTypeSpec;
