@@ -1,9 +1,24 @@
-/**
- * Copyright 2017-2021 LinkedIn Corporation. All rights reserved.
- * Licensed under the BSD-2 Clause license.
- * See LICENSE in the project root for license information.
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+
 package com.linkedin.coral.hive.hive2rel.parsetree.parser;
+
+import org.apache.hadoop.hive.common.StringInternUtils;
 
 /**
  * ASTNodeOrigin contains contextual information about the object from whose
@@ -15,15 +30,13 @@ package com.linkedin.coral.hive.hive2rel.parsetree.parser;
  * parser location with respect to the definition of v (rather than with respect
  * to the top-level query, since that represents a completely different
  * "parser coordinate system").
- *
+ * 
  *<p>
- *
+ * 
  * So, when expanding the definition of v while analyzing the top-level query,
- * we tag each ASTNode with a reference to an ASTNodeOrigin describing v and its
+ * we tag each ASTNode with a reference to an ASTNodeOrign describing v and its
  * usage within the query.
  */
-
-//spotless:off
 public class ASTNodeOrigin {
   private final String objectType;
   private final String objectName;
@@ -31,11 +44,11 @@ public class ASTNodeOrigin {
   private final String usageAlias;
   private final ASTNode usageNode;
 
-  public ASTNodeOrigin(String objectType, String objectName, String objectDefinition, String usageAlias,
-      ASTNode usageNode) {
+  public ASTNodeOrigin(String objectType, String objectName,
+      String objectDefinition, String usageAlias, ASTNode usageNode) {
     this.objectType = objectType;
     this.objectName = objectName;
-    this.objectDefinition = objectDefinition;
+    this.objectDefinition = StringInternUtils.internIfNotNull(objectDefinition);
     this.usageAlias = usageAlias;
     this.usageNode = usageNode;
   }
@@ -82,4 +95,3 @@ public class ASTNodeOrigin {
 }
 
 // End ASTNodeOrigin.java
-//spotless:on

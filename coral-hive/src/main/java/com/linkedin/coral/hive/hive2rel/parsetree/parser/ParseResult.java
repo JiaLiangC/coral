@@ -15,49 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.linkedin.coral.hive.hive2rel.parsetree.parser;
 
-import org.antlr.runtime.BaseRecognizer;
-import org.antlr.runtime.RecognitionException;
-
-/*
- * SemanticException.java
- *
- * Created on April 1, 2008, 1:20 PM
- *
- * To change this template, choose Tools | Template Manager
- * and open the template in the editor.
- */
+import java.util.List;
+import org.antlr.runtime.TokenRewriteStream;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
- *
+ * Contains result of {@link ParseDriver#parse(String)}.
  */
-public class ParseError {
-  private final BaseRecognizer br;
-  private final RecognitionException re;
-  private final String[] tokenNames;
+public class ParseResult {
+  private final ASTNode tree;
+  private final TokenRewriteStream tokenRewriteStream;
+  private final List<Pair<String, String>> tables;
 
-  ParseError(BaseRecognizer br, RecognitionException re, String[] tokenNames) {
-    this.br = br;
-    this.re = re;
-    this.tokenNames = tokenNames;
+  public ParseResult(ASTNode tree, TokenRewriteStream tokenRewriteStream,
+      List<Pair<String, String>> tables) {
+    this.tree = tree;
+    this.tokenRewriteStream = tokenRewriteStream;
+    this.tables = tables;
   }
 
-  BaseRecognizer getBaseRecognizer() {
-    return br;
+  public ASTNode getTree() {
+    return tree;
   }
 
-  RecognitionException getRecognitionException() {
-    return re;
+  public TokenRewriteStream getTokenRewriteStream() {
+    return tokenRewriteStream;
   }
 
-  String[] getTokenNames() {
-    return tokenNames;
+  public List<Pair<String, String>> getTables() {
+    return tables;
   }
-
-  String getMessage() {
-    return br.getErrorHeader(re) + " " + br.getErrorMessage(re, tokenNames);
-  }
-
 }
