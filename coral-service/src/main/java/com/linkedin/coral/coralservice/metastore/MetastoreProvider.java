@@ -73,7 +73,7 @@ public class MetastoreProvider {
       throws IOException, MetaException, ConfigurationException {
 
     HiveConf conf = new HiveConf();
-    conf.setVar(METASTOREURIS, props.getProperty(HIVE_METASTORE_URIS, DEFAULT_METASTORE_URI));
+    conf.setVar(METASTORE_URIS, props.getProperty(HIVE_METASTORE_URIS, DEFAULT_METASTORE_URI));
 
     if (props.getProperty(HIVE_METASTORE_AUTHENTICATION, DEFAULT_METASTORE_AUTHENTICATION)
         .equalsIgnoreCase(KERBEROS_AUTHENTICATION)) {
