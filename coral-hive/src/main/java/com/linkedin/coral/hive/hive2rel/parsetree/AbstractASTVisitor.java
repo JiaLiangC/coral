@@ -88,8 +88,8 @@ public abstract class AbstractASTVisitor<R, C> {
       case HiveParser.StringLiteral:
         return visitStringLiteral(node, ctx);
 
-      case HiveParser.BigintLiteral:
-        return visitBigintLiteral(node, ctx);
+      case HiveParser.NumberLiteral:
+        return visitNumberLiteral(node, ctx);
 
       case HiveParser.TOK_INSERT:
         return visitInsert(node, ctx);
@@ -198,8 +198,8 @@ public abstract class AbstractASTVisitor<R, C> {
         return null;
 
       // add function names here
-      case HiveParser.TOK_ISNOTNULL:
-      case HiveParser.TOK_ISNULL:
+//      case HiveParser.TOK_ISNOTNULL:
+//      case HiveParser.TOK_ISNULL:
       case HiveParser.KW_CASE:
       case HiveParser.KW_CAST:
       case HiveParser.KW_WHEN:
@@ -220,7 +220,12 @@ public abstract class AbstractASTVisitor<R, C> {
 
       case HiveParser.TOK_STRING:
         return visitString(node, ctx);
-
+      case HiveParser.TOK_MAP:
+        return visitMap(node, ctx);
+      case HiveParser.TOK_LIST:
+        return visitList(node, ctx);
+      case HiveParser.TOK_STRUCT:
+        return visitStruct(node, ctx);
       case HiveParser.TOK_BINARY:
         return visitBinary(node, ctx);
 
@@ -297,8 +302,6 @@ public abstract class AbstractASTVisitor<R, C> {
       case HiveParser.TOK_DISTRIBUTEBY:
         return visitDistributeBy(node, ctx);
 
-      case HiveParser.TOK_CLUSTERBY:
-        return visitClusterBy(node, ctx);
 
       case HiveParser.TOK_WINDOWRANGE:
         return visitWindowRange(node, ctx);
@@ -326,14 +329,193 @@ public abstract class AbstractASTVisitor<R, C> {
       case HiveParser.KW_CURRENT:
         return visitCurrentRow(node, ctx);
 
+      case HiveParser.KW_BETWEEN:
+        return visitDefault(node, ctx);
+      case HiveParser.KW_UNIONTYPE:
+        return visitDefault(node, ctx);
+      case HiveParser.KW_WINDOW:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_ALIASLIST:
+        return visitDefault(node, ctx);
+//      case HiveParser.TOK_ANONYMOUS:
+//        return visitDefault(node, ctx);
+
+      /*
+      *  CREATE TABLE DDL
+      * todo add unit test
+      * */
+      case HiveParser.TOK_CREATETABLE:
+        return visitCreateTable(node, ctx);
+      case HiveParser.TOK_LIKETABLE:
+        return visitLikeTable(node, ctx);
+      case HiveParser.TOK_IFNOTEXISTS:
+        return visitIfNotExists(node, ctx);
+      case HiveParser.TOK_TABCOLLIST:
+        return visitColumnList(node, ctx);
+      case HiveParser.TOK_TABCOL:
+        return visitColumn(node, ctx);
+      case HiveParser.TOK_COLTYPELIST:
+        return visitColumnTypeList(node, ctx);
+      case HiveParser.TOK_FILEFORMAT_GENERIC:
+        return visitFileFormatGeneric(node, ctx);
+      case HiveParser.TOK_TABLEFILEFORMAT:
+        return visitTableFileFormat(node, ctx);
+      case HiveParser.TOK_TABLESERIALIZER:
+        return visitTableSerializer(node, ctx);
+      case HiveParser.TOK_SERDENAME:
+        return visitSerdeName(node, ctx);
+      case HiveParser.TOK_TABLEROWFORMAT:
+        return visitTableRowFormat(node, ctx);
+      case HiveParser.TOK_TABLEROWFORMATFIELD:
+        return visitTableRowFormatField(node, ctx);
+      case HiveParser.TOK_TABLECOMMENT:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_TABLEPARTCOLS:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_BUCKETS:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_TABLESKEWED:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_SERDE:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_SERDEPROPS:
+        return visitSerdeProps(node, ctx);
+
+      case HiveParser.TOK_TABLEPROPERTIES:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_TABLEPROPLIST:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_TABLEPROPERTY:
+        return visitDefault(node, ctx);
+
+      case HiveParser.TOK_TABLEROWFORMATCOLLITEMS:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_TABLEROWFORMATMAPKEYS:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_TABLEROWFORMATLINES:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_TABLEROWFORMATNULL:
+        return visitDefault(node, ctx);
+
+      case HiveParser.TOK_STORAGEHANDLER:
+        return visitDefault(node, ctx);
+
+      case HiveParser.TOK_TABLELOCATION:
+        return visitDefault(node, ctx);
+
+      case HiveParser.TOK_CLUSTERBY:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_COL_NAME:
+        return visitDefault(node, ctx);
+
+
+      case HiveParser.TOK_DATETIME:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_DELETE_FROM:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_DIR:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_EXPLIST:
+        return visitDefault(node, ctx);
+//      case HiveParser.TOK_HINT:
+//        return visitDefault(node, ctx);
+//      case HiveParser.TOK_HINTARGLIST:
+//        return visitDefault(node, ctx);
+//      case HiveParser.TOK_HINTLIST:
+//        return visitDefault(node, ctx);
+//      case HiveParser.TOK_HOLD_DDLTIME:
+//        return visitDefault(node, ctx);
+      case HiveParser.TOK_INSERT_INTO:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_LENGTH:
+        return visitDefault(node, ctx);
+//      case HiveParser.TOK_MAPJOIN:
+//        return visitDefault(node, ctx);
+      case HiveParser.TOK_PARTSPEC:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_PARTVAL:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_PERCENT:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_PTBLFUNCTION:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_ROWCOUNT:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_SET_COLUMNS_CLAUSE:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_SORTBY:
+        return visitDefault(node, ctx);
+//      case HiveParser.TOK_STREAMTABLE:
+//        return visitDefault(node, ctx);
+      case HiveParser.TOK_STRINGLITERALSEQUENCE:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_TAB:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_TABLEBUCKETSAMPLE:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_TABLESPLITSAMPLE:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_TMP_FILE:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_TRANSFORM:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_UNIONDISTINCT:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_UNIQUEJOIN:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_UPDATE_TABLE:
+        return visitDefault(node, ctx);
+
+//      case HiveParser.TOK_VALUES_TABLE:
+//        return visitDefault(node, ctx);
+//      case HiveParser.TOK_VALUE_ROW:
+//        return visitDefault(node, ctx);
+//      case HiveParser.TOK_VIRTUAL_TABLE:
+//        return visitDefault(node, ctx);
+//      case HiveParser.TOK_VIRTUAL_TABREF:
+//        return visitDefault(node, ctx);
+      case HiveParser.TOK_WINDOWDEF:
+        return visitDefault(node, ctx);
+      case HiveParser.TOK_NULLS_LAST:
+        return visitNullsLast(node, ctx);
+      case HiveParser.TOK_NULLS_FIRST:
+        return visitNullsFirst(node, ctx);
+      case HiveParser.TOK_ENABLE:
+        return visitNullsFirst(node, ctx);
+
+      case HiveParser.TOK_UNIQUE:
+        return visitUnique(node, ctx);
+      case HiveParser.TOK_PRIMARY_KEY:
+        return visitPrimaryKey(node, ctx);
+      case HiveParser.TOK_NOT_NULL:
+        return visitNotNull(node, ctx);
+      case HiveParser.TOK_DEFAULT_VALUE:
+        return visitDefaultValue(node, ctx);
+      case HiveParser.TOK_CHECK_CONSTRAINT:
+        return visitCheckConstraint(node, ctx);
+
+
+
+      case HiveParser.TOK_DISABLE:
+        return visitDisable(node, ctx);
+      case HiveParser.TOK_NOVALIDATE:
+        return visitNoValidate(node, ctx);
+//      case HiveParser.TOK_INTERVAL_DAY_LITERAL:
+//        return visitIntervalDayLiteral(node,ctx);
       default:
         // return visitChildren(node, ctx);
+        System.out.println(node.getType() + "token not have a visit method , please check code");
         throw new UnhandledASTTokenException(node);
     }
   }
 
 
 
+
+
+  protected R visitIntervalDayLiteral(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
 
   protected R visitKeywordLiteral(ASTNode node, C ctx) {
     return visitChildren(node, ctx).get(0);
@@ -381,6 +563,123 @@ public abstract class AbstractASTVisitor<R, C> {
   protected List<R> visitChildrenByType(List<Node> nodes, C ctx, int nodeType) {
     return nodes.stream().filter(node -> ((ASTNode) node).getType() == nodeType).map(n -> visit((ASTNode) n, ctx))
         .collect(Collectors.toList());
+  }
+
+  protected R visitDefault(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+
+
+
+  protected R visitUnique(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitPrimaryKey(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitNotNull(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitDefaultValue(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+
+  protected R visitDisable(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+  protected R visitNoValidate(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+
+  protected R visitColumnConstraint(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+  protected R visitCheckConstraint(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+  protected R visitNullsLast(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+  protected R visitNullsFirst(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+  protected R visitTableRowFormatField(ASTNode node, C ctx) {
+    if (node.getChildren() != null) {
+      return visitChildren(node, ctx).get(0);
+    }
+    return null;
+  }
+
+  protected R visitSerdeProps(ASTNode node, C ctx) {
+    if (node.getChildren() != null) {
+      return visitChildren(node, ctx).get(0);
+    }
+    return null;
+  }
+
+  protected R visitTableRowFormat(ASTNode node, C ctx) {
+    if (node.getChildren() != null) {
+      return visitChildren(node, ctx).get(0);
+    }
+    return null;
+  }
+
+  protected R visitSerdeName(ASTNode node, C ctx) {
+    if (node.getChildren() != null) {
+      return visitChildren(node, ctx).get(0);
+    }
+    return null;
+  }
+
+  protected R visitTableSerializer(ASTNode node, C ctx) {
+    if (node.getChildren() != null) {
+      return visitChildren(node, ctx).get(0);
+    }
+    return null;
+  }
+
+  protected R visitTableFileFormat(ASTNode node, C ctx) {
+    if (node.getChildren() != null) {
+      return visitChildren(node, ctx).get(0);
+    }
+    return null;
+  }
+
+  protected R visitFileFormatGeneric(ASTNode node, C ctx) {
+    if (node.getChildren() != null) {
+      return visitChildren(node, ctx).get(0);
+    }
+    return null;
+  }
+
+
+  protected R visitColumnTypeList(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+
+
+  protected R visitColumn(ASTNode node, C ctx) {
+    if (node.getChildren() != null) {
+      return visitChildren(node, ctx).get(0);
+    }
+    return null;
+  }
+
+  protected R visitColumnList(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+  protected R visitIfNotExists(ASTNode node, C ctx) {
+    if (node.getChildren() != null) {
+      return visitChildren(node, ctx).get(0);
+    }
+    return null;
+  }
+
+  protected R visitLikeTable(ASTNode node, C ctx) {
+    if (node.getChildren() != null) {
+      return visitChildren(node, ctx).get(0);
+    }
+    return null;
+  }
+
+  protected R visitCreateTable(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
   }
 
   protected R visitTabAlias(ASTNode node, C ctx) {
@@ -553,7 +852,7 @@ public abstract class AbstractASTVisitor<R, C> {
     return visitChildren(node, ctx).get(0);
   }
 
-  protected R visitBigintLiteral(ASTNode node, C ctx) {
+  protected R visitNumberLiteral(ASTNode node, C ctx) {
     return visitChildren(node, ctx).get(0);
   }
 
@@ -601,6 +900,18 @@ public abstract class AbstractASTVisitor<R, C> {
     return visitChildren(node, ctx).get(0);
   }
 
+  protected R visitMap(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+
+  protected R visitStruct(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+  protected R visitList(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
   protected R visitString(ASTNode node, C ctx) {
     return visitChildren(node, ctx).get(0);
   }
@@ -613,9 +924,7 @@ public abstract class AbstractASTVisitor<R, C> {
     return visitChildren(node, ctx).get(0);
   }
 
-  protected R visitDate(ASTNode node, C ctx) {
-    return visitChildren(node, ctx).get(0);
-  }
+  protected R visitDate(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
 
   protected R visitDateLiteral(ASTNode node, C ctx) {
     return visitChildren(node, ctx).get(0);

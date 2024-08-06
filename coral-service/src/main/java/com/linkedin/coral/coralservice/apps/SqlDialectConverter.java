@@ -32,7 +32,7 @@ public class SqlDialectConverter {
         SqlTransformers transformers =  SqlTransformers.of(ImmutableList.<SqlTransformer> builder().addAll(rules).build());
         SqlConverter converter = new SqlConverter(transformers);
         SqlNode convertedNode = parsedNode.accept(converter);
-        String result =  convertedNode.toSqlString(SparkSqlDialect.INSTANCE).getSql();
+        String result =  convertedNode.toSqlString(targetDialect).getSql();
 
         return result;
         } catch (Exception e) {

@@ -6,6 +6,7 @@
 package com.linkedin.coral.common.calcite.sql.ddl;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.calcite.sql.parser.SqlParserPos.ZERO;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,18 +15,12 @@ import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import org.apache.calcite.sql.SqlCharStringLiteral;
-import org.apache.calcite.sql.SqlCreate;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.calcite.sql.SqlWriter;
+import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.pretty.SqlPrettyWriter;
+import org.apache.calcite.sql.type.ReturnTypes;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableNullableList;
 
 import com.linkedin.coral.common.calcite.sql.ExtendedSqlNode;
@@ -35,12 +30,56 @@ import com.linkedin.coral.common.calcite.sql.ddl.SqlTableColumn.SqlComputedColum
 import com.linkedin.coral.common.calcite.sql.ddl.SqlTableColumn.SqlRegularColumn;
 import com.linkedin.coral.common.calcite.sql.ddl.constraint.SqlTableConstraint;
 import com.linkedin.coral.common.calcite.sql.error.SqlValidateException;
+import org.apache.derby.iapi.types.SQLBoolean;
 
 
 /** CREATE TABLE DDL sql call. */
 public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE TABLE", SqlKind.CREATE_TABLE);
+//  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE TABLE", SqlKind.CREATE_TABLE);
+public static final SqlSpecialOperator OPERATOR =
+        new SqlSpecialOperator("CREATE TABLE", SqlKind.CREATE_TABLE, 32, false, ReturnTypes.BOOLEAN, null, null) {
+          @Override
+          public SqlCall createCall(@Nullable final SqlLiteral functionQualifier,
+                                    final SqlParserPos pos,
+                                    final @Nullable SqlNode... operands) {
+            if (operands.length < 18) {
+              throw new IllegalArgumentException("Invalid number of operands for CREATE TABLE");
+            }
+
+            SqlIdentifier tableName = (SqlIdentifier) operands[0];
+            SqlNodeList columnList = (SqlNodeList) operands[1];
+            List<SqlNode> nodeList = ((SqlNodeList) operands[2]).getList();
+            List<SqlTableConstraint> tableConstraints = new ArrayList<>();
+
+            for (SqlNode node : nodeList) {
+              if (node instanceof SqlTableConstraint) {
+                tableConstraints.add((SqlTableConstraint) node);
+              }
+            }
+
+            SqlNodeList propertyList = (SqlNodeList) operands[3];
+            SqlNodeList partitionByList = (SqlNodeList) operands[4];
+            SqlNodeList clusterByList = (SqlNodeList) operands[5];
+            SqlNodeList sortedByList = (SqlNodeList) operands[6];
+            SqlNodeList skewedByList = (SqlNodeList) operands[7];
+            SqlNode storedAs = operands[8];
+            SqlNode storedBy = operands[9];
+            SqlCharStringLiteral location = (SqlCharStringLiteral) operands[10];
+            SqlNode rowFormat = operands[11];
+            SqlCharStringLiteral comment = (SqlCharStringLiteral) operands[12];
+            final boolean isTemporary = operands[13] != null && ((SqlLiteral) operands[13]).booleanValue();
+            boolean isExternal = operands[14] != null && ((SqlLiteral) operands[14]).booleanValue();
+            boolean isTransactional = operands[15] != null && ((SqlLiteral) operands[15]).booleanValue();
+            boolean ifNotExists = operands[16] != null && ((SqlLiteral) operands[16]).booleanValue();
+            SqlNode query = operands[17];
+
+            return new SqlCreateTable(pos, tableName, columnList, tableConstraints, propertyList,
+                    partitionByList, clusterByList, sortedByList, skewedByList, storedAs, storedBy,
+                    location, rowFormat, comment, isTemporary, isExternal, isTransactional, ifNotExists, query);
+          }
+        };
+
 
   private final SqlIdentifier tableName;
 
@@ -65,9 +104,9 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
   private final SqlCharStringLiteral location;
 
-  private final boolean isExternal;
-  private final boolean isTemporary;
-  private final boolean isTransactional;
+  private final boolean isExternal ;
+  private final boolean isTemporary ;
+  private final boolean isTransactional ;
 
   public SqlCreateTable(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList columnList,
       List<SqlTableConstraint> tableConstraints, SqlNodeList propertyList, SqlNodeList partitionKeyList,
@@ -88,9 +127,9 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
     super(operator, pos, false, ifNotExists);
     this.tableName = requireNonNull(tableName, "tableName should not be null");
     this.columnList = requireNonNull(columnList, "columnList should not be null");
-    this.tableConstraints = requireNonNull(tableConstraints, "table constraints should not be null");
-    this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
-    this.partitionByList = requireNonNull(partitionKeyList, "partitionKeyList should not be null");
+    this.tableConstraints = tableConstraints;
+    this.propertyList = propertyList;
+    this.partitionByList = partitionKeyList;
     this.clusterByList = clusterByList;
     this.sortedByList = sortedByList;
     this.skewedByList = skewedByList;
@@ -112,9 +151,9 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
   @Override
   public @Nonnull List<SqlNode> getOperandList() {
-    return ImmutableNullableList.of(tableName, columnList, new SqlNodeList(tableConstraints, SqlParserPos.ZERO),
+    return ImmutableNullableList.of(tableName, columnList, new SqlNodeList(tableConstraints, ZERO),
         propertyList, partitionByList, clusterByList, sortedByList, skewedByList, storedAs, storedBy, location,
-        rowFormat, comment, query);
+        rowFormat, comment,SqlLiteral.createBoolean(isTemporary,ZERO),SqlLiteral.createBoolean(isExternal,ZERO),SqlLiteral.createBoolean(isTransactional,ZERO),SqlLiteral.createBoolean(ifNotExists,ZERO), query);
   }
 
   public SqlIdentifier getTableName() {
@@ -192,7 +231,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
   @Override
   public void validate() throws SqlValidateException {
-    SqlConstraintValidator.validateAndChangeColumnNullability(tableConstraints, columnList);
+    //SqlConstraintValidator.validateAndChangeColumnNullability(tableConstraints, columnList);
   }
 
   public boolean hasRegularColumnsOnly() {
@@ -272,7 +311,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
       comment.unparse(writer, leftPrec, rightPrec);
     }
 
-    if (this.partitionByList.size() > 0) {
+    if (this.partitionByList !=null && this.partitionByList.size() > 0) {
       writer.newlineAndIndent();
       writer.keyword("PARTITIONED BY");
       SqlWriter.Frame partitionedByFrame = writer.startList("(", ")");
@@ -305,7 +344,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
       writer.newlineAndIndent();
     }
 
-    if (this.propertyList.size() > 0) {
+    if (this.propertyList !=null && this.propertyList.size() > 0) {
       writer.keyword("WITH");
       SqlWriter.Frame withFrame = writer.startList("(", ")");
       for (SqlNode property : propertyList) {

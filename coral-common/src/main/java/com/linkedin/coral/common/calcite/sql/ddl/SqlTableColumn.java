@@ -13,6 +13,7 @@ import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.linkedin.coral.common.calcite.sql.ddl.constraint.SqlColumnConstraint;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -23,6 +24,7 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.util.ImmutableNullableList;
 import org.apache.calcite.util.NlsString;
 
@@ -31,7 +33,26 @@ import com.linkedin.coral.common.calcite.sql.ddl.constraint.SqlTableConstraint;
 
 /** Table column of a CREATE TABLE DDL. */
 public abstract class SqlTableColumn extends SqlCall {
-  private static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("COLUMN_DECL", SqlKind.COLUMN_DECL);
+  public static final SqlSpecialOperator OPERATOR =
+          new SqlSpecialOperator("COLUMN_DECL", SqlKind.COLUMN_DECL, 32, false, ReturnTypes.BOOLEAN, null, null) {
+            @Override
+            public SqlCall createCall(@Nullable SqlLiteral functionQualifier, SqlParserPos pos, @Nullable SqlNode... operands) {
+              if (operands.length < 2 || operands.length > 4) {
+                throw new IllegalArgumentException("Invalid number of operands");
+              }
+              SqlIdentifier name = (SqlIdentifier) operands[0];
+              SqlNode comment = operands[2];
+              if (operands.length==4){
+                SqlDataTypeSpec type = (SqlDataTypeSpec) operands[1];
+                SqlColumnConstraint constraint = (SqlColumnConstraint) operands[3];
+                return new SqlRegularColumn(pos, name, comment, type, constraint);
+              } else {
+                  return new SqlComputedColumn(pos, name, comment, operands[1]);
+              }
+            }
+          };
+
+//  private static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("COLUMN_DECL", SqlKind.COLUMN_DECL);
 
   protected final SqlIdentifier name;
 
@@ -66,19 +87,34 @@ public abstract class SqlTableColumn extends SqlCall {
     return name;
   }
 
-  public Optional<SqlNode> getComment() {
-    return Optional.ofNullable(comment);
+  public SqlNode getComment() {
+    return comment;
   }
 
   /** A regular, physical column. */
   public static class SqlRegularColumn extends SqlTableColumn {
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("REGULAR_COLUMN", SqlKind.COLUMN_DECL, 32, false, ReturnTypes.BOOLEAN, null, null) {
+              @Override
+              public SqlCall createCall(@Nullable SqlLiteral functionQualifier, SqlParserPos pos, @Nullable SqlNode... operands) {
+                if (operands.length < 2 || operands.length > 4) {
+                  throw new IllegalArgumentException("Invalid number of operands for SqlRegularColumn");
+                }
 
+                SqlIdentifier name = (SqlIdentifier) operands[0];
+                SqlDataTypeSpec type = (SqlDataTypeSpec) operands[1];
+                SqlNode comment = operands.length > 2 ? operands[2] : null;
+                SqlColumnConstraint constraint = operands.length > 3 ? (SqlColumnConstraint) operands[3] : null;
+
+                return new SqlRegularColumn(pos, name, comment, type, constraint);
+              }
+            };
     private SqlDataTypeSpec type;
 
-    private final @Nullable SqlTableConstraint constraint;
+    private final @Nullable SqlColumnConstraint constraint;
 
     public SqlRegularColumn(SqlParserPos pos, SqlIdentifier name, @Nullable SqlNode comment, SqlDataTypeSpec type,
-        @Nullable SqlTableConstraint constraint) {
+        @Nullable SqlColumnConstraint constraint) {
       super(pos, name, comment);
       this.type = requireNonNull(type, "Column type should not be null");
       this.constraint = constraint;
@@ -92,8 +128,8 @@ public abstract class SqlTableColumn extends SqlCall {
       this.type = type;
     }
 
-    public Optional<SqlTableConstraint> getConstraint() {
-      return Optional.ofNullable(constraint);
+    public SqlColumnConstraint getConstraint() {
+      return constraint;
     }
 
     @Override
@@ -110,61 +146,61 @@ public abstract class SqlTableColumn extends SqlCall {
 
     @Override
     public @Nonnull List<SqlNode> getOperandList() {
-      return ImmutableNullableList.of(name, type, constraint, comment);
+      return ImmutableNullableList.of(name, type,comment, constraint );
     }
   }
 
-  /** A column derived from metadata. */
-  public static class SqlMetadataColumn extends SqlTableColumn {
-
-    private final SqlDataTypeSpec type;
-
-    private final @Nullable SqlNode metadataAlias;
-
-    private final boolean isVirtual;
-
-    public SqlMetadataColumn(SqlParserPos pos, SqlIdentifier name, @Nullable SqlNode comment, SqlDataTypeSpec type,
-        @Nullable SqlNode metadataAlias, boolean isVirtual) {
-      super(pos, name, comment);
-      this.type = requireNonNull(type, "Column type should not be null");
-      this.metadataAlias = metadataAlias;
-      this.isVirtual = isVirtual;
-    }
-
-    public SqlDataTypeSpec getType() {
-      return type;
-    }
-
-    public Optional<String> getMetadataAlias() {
-      return Optional.ofNullable(metadataAlias).map(alias -> ((NlsString) SqlLiteral.value(alias)).getValue());
-    }
-
-    public boolean isVirtual() {
-      return isVirtual;
-    }
-
-    @Override
-    protected void unparseColumn(SqlWriter writer, int leftPrec, int rightPrec) {
-      type.unparse(writer, leftPrec, rightPrec);
-      if (this.type.getNullable() != null && !this.type.getNullable()) {
-        // Default is nullable.
-        writer.keyword("NOT NULL");
-      }
-      writer.keyword("METADATA");
-      if (metadataAlias != null) {
-        writer.keyword("FROM");
-        metadataAlias.unparse(writer, leftPrec, rightPrec);
-      }
-      if (isVirtual) {
-        writer.keyword("VIRTUAL");
-      }
-    }
-
-    @Override
-    public @Nonnull List<SqlNode> getOperandList() {
-      return ImmutableNullableList.of(name, type, comment);
-    }
-  }
+//  /** A column derived from metadata. */
+//  public static class SqlMetadataColumn extends SqlTableColumn {
+//
+//    private final SqlDataTypeSpec type;
+//
+//    private final @Nullable SqlNode metadataAlias;
+//
+//    private final boolean isVirtual;
+//
+//    public SqlMetadataColumn(SqlParserPos pos, SqlIdentifier name, @Nullable SqlNode comment, SqlDataTypeSpec type,
+//        @Nullable SqlNode metadataAlias, boolean isVirtual) {
+//      super(pos, name, comment);
+//      this.type = requireNonNull(type, "Column type should not be null");
+//      this.metadataAlias = metadataAlias;
+//      this.isVirtual = isVirtual;
+//    }
+//
+//    public SqlDataTypeSpec getType() {
+//      return type;
+//    }
+//
+//    public Optional<String> getMetadataAlias() {
+//      return Optional.ofNullable(metadataAlias).map(alias -> ((NlsString) SqlLiteral.value(alias)).getValue());
+//    }
+//
+//    public boolean isVirtual() {
+//      return isVirtual;
+//    }
+//
+//    @Override
+//    protected void unparseColumn(SqlWriter writer, int leftPrec, int rightPrec) {
+//      type.unparse(writer, leftPrec, rightPrec);
+//      if (this.type.getNullable() != null && !this.type.getNullable()) {
+//        // Default is nullable.
+//        writer.keyword("NOT NULL");
+//      }
+//      writer.keyword("METADATA");
+//      if (metadataAlias != null) {
+//        writer.keyword("FROM");
+//        metadataAlias.unparse(writer, leftPrec, rightPrec);
+//      }
+//      if (isVirtual) {
+//        writer.keyword("VIRTUAL");
+//      }
+//    }
+//
+//    @Override
+//    public @Nonnull List<SqlNode> getOperandList() {
+//      return ImmutableNullableList.of(name, type, comment);
+//    }
+//  }
 
   /** A column derived from an expression. */
   public static class SqlComputedColumn extends SqlTableColumn {

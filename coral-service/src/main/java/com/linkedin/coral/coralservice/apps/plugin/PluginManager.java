@@ -1,6 +1,7 @@
 package com.linkedin.coral.coralservice.apps.plugin;
 
 import com.linkedin.coral.coralservice.apps.parser.HiveSqlParser;
+import com.linkedin.coral.coralservice.apps.transformer.DataTypeTransformer;
 import com.linkedin.coral.coralservice.apps.transformer.ShiftArrayIndexTransformer;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.dialect.HiveSqlDialect;
@@ -13,14 +14,30 @@ import java.util.List;
 import java.util.ServiceLoader;
 
 public class PluginManager {
+    private static volatile PluginManager instance;
     private final List<Plugin> plugins = new ArrayList<>();
+
+    public PluginRegistry getRegistry() {
+        return registry;
+    }
+
     private final PluginRegistry registry;
 
-
-
-    public PluginManager(PluginRegistry registry) {
+    private PluginManager(PluginRegistry registry) {
         this.registry = registry;
     }
+
+    public static PluginManager getInstance() {
+        if (instance == null) {
+            synchronized (PluginManager.class) {
+                if (instance == null) {
+                    instance = new PluginManager(PluginRegistry.getInstance());
+                }
+            }
+        }
+        return instance;
+    }
+
     public void loadPlugins(String pluginDir) {
         File dir = new File(pluginDir);
         if (!dir.isDirectory()) {
@@ -50,7 +67,6 @@ public class PluginManager {
     }
 
     public void initializePlugins() {
-
         //do BuiltIn plugins initialize
         registerBuiltInComponents();
 
@@ -79,24 +95,16 @@ public class PluginManager {
         SqlDialect hiveDialect =  HiveSqlDialect.DEFAULT;
         registry.registerSqlDialect(hiveDialect);
         registry.registerSqlParserClass(hiveDialect.getClass().getName(), HiveSqlParser.class);
-
-        // SparkSqlDialect sparkDialect = new SparkSqlDialect();
-        // registry.registerSqlDialect(sparkDialect);
-        // registry.registerSqlParserClass(sparkDialect.getName(), SparkSqlParser.class);
     }
 
-
-    //静态手动注册系统内置的转换插件
     private void registerBuiltInTransformationRules() {
-        registry.registerSqlTransformer(new ShiftArrayIndexTransformer());
+        registry.registerSqlTransformer(new DataTypeTransformer());
     }
 
     private void registerBuiltInOptimizationStrategies() {
         //registry.registerOptimizationStrategy(new PushDownPredicateStrategy());
         //registry.registerOptimizationStrategy(new MergeProjectionsStrategy());
     }
-
-
 
     private void registerPluginComponents(Plugin plugin) {
         if (plugin instanceof SqlDialectPlugin) {
@@ -123,7 +131,6 @@ public class PluginManager {
     private void registerOptimizationStrategyPlugin(OptimizationStrategyPlugin plugin) {
         registry.registerOptimizationStrategy(plugin.getOptimizationStrategy());
     }
-
 
     public void shutdownPlugins() {
         for (Plugin plugin : plugins) {

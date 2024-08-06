@@ -5,11 +5,7 @@
  */
 package com.linkedin.coral.hive.hive2rel.parsetree;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -17,36 +13,21 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 import com.linkedin.coral.common.calcite.CalciteUtil;
+import com.linkedin.coral.common.calcite.sql.*;
+import com.linkedin.coral.common.calcite.sql.ddl.SqlCreateTable;
+import com.linkedin.coral.common.calcite.sql.ddl.SqlRowFormatDelimited;
+import com.linkedin.coral.common.calcite.sql.ddl.SqlTableColumn;
+import com.linkedin.coral.common.calcite.sql.ddl.constraint.SqlColumnConstraint;
 import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.sql.JoinConditionType;
-import org.apache.calcite.sql.JoinType;
-import org.apache.calcite.sql.SqlAsOperator;
-import org.apache.calcite.sql.SqlBasicCall;
-import org.apache.calcite.sql.SqlBasicTypeNameSpec;
-import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlDataTypeSpec;
-import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.SqlIntervalQualifier;
-import org.apache.calcite.sql.SqlJoin;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLateralOperator;
-import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlSelect;
-import org.apache.calcite.sql.SqlSelectKeyword;
-import org.apache.calcite.sql.SqlTypeNameSpec;
-import org.apache.calcite.sql.SqlWindow;
-import org.apache.calcite.sql.SqlWith;
-import org.apache.calcite.sql.SqlWithItem;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.hadoop.hive.metastore.api.Table;
 
-import com.linkedin.coral.com.google.common.collect.ImmutableList;
-import com.linkedin.coral.com.google.common.collect.Iterables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.linkedin.coral.common.functions.CoralSqlUnnestOperator;
 import com.linkedin.coral.common.functions.Function;
 import com.linkedin.coral.common.functions.FunctionFieldReferenceOperator;
@@ -66,7 +47,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.lang.String.format;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.*;
 import static org.apache.calcite.sql.parser.SqlParserPos.ZERO;
-
+import com.linkedin.coral.common.calcite.sql.ddl.constraint.SqlTableConstraint;
 
 
 //这个类主要的作用就是把hive 的ast 转换为 calcite 的sqlnode
@@ -344,7 +325,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     }
 
     SqlNode select =
-        new SqlSelect(ZERO, null, new SqlNodeList(projections, ZERO), null, null, null, null, null, null, null, null);
+        new SqlSelect(ZERO, null, new SqlNodeList(projections, ZERO), null, null, null, null, null, null, null, null, null);
     SqlNode lateral = SqlStdOperatorTable.LATERAL.createCall(ZERO, select);
     SqlCall lateralAlias = SqlStdOperatorTable.AS.createCall(ZERO,
         ImmutableList.<SqlNode> builder().add(lateral).addAll(aliasOperands.subList(1, aliasOperands.size())).build());
@@ -495,6 +476,19 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
   }
 
 
+  @Override
+  protected SqlNode visitNullsFirst(ASTNode node, ParseContext ctx) {
+    List<SqlNode> orderByCols = visitChildren(node, ctx);
+    return SqlStdOperatorTable.NULLS_FIRST.createCall(ZERO, orderByCols);
+  }
+
+  @Override
+  protected SqlNode visitNullsLast(ASTNode node, ParseContext ctx) {
+    List<SqlNode> orderByCols = visitChildren(node, ctx);
+    return NULLS_LAST.createCall(ZERO, orderByCols);
+  }
+
+
   //singe group by only one col
   @Override
   protected SqlNode visitGroupBy(ASTNode node, ParseContext ctx) {
@@ -504,7 +498,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
   }
 
 
-  // todo hive 识别到grouping set 后，构造的 ast 中会略去 group by 节点， group by 会被认为是grouping set的特殊情况，
+  // todo hive 识别到grouping set 后，构造的 ast 中会略去 group by 节点， group by 会被认为是 grouping set的特殊情况，
   // group by  a,b 会构造多个group by ast 节点
   // 在visitGroupingSets 中很难在sqlnode 中去构造一个 groupby 类型sqlnode
   protected  SqlNode visitGroupingSets(ASTNode node,  ParseContext ctx){
@@ -636,9 +630,26 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     return visitFunctionInternal(node, ctx, SqlSelectKeyword.DISTINCT.symbol(ZERO));
   }
 
+  //todo 暂时改为 visitHiveFunctionInternal
   @Override
   protected SqlNode visitFunction(ASTNode node, ParseContext ctx) {
     return visitFunctionInternal(node, ctx, null);
+//    return visitHiveFunctionInternal(node, ctx, null);
+  }
+
+
+
+
+
+  //todo 这里其实只是为了
+  private SqlNode visitHiveFunctionInternal(ASTNode node, ParseContext ctx, SqlLiteral quantifier) {
+    ArrayList<Node> children = node.getChildren();
+    checkState(!children.isEmpty());
+    ASTNode functionNode = (ASTNode) children.get(0);
+    String functionName = functionNode.getText();
+    List<SqlNode> sqlOperands = visitChildren(children, ctx);
+    SqlIdentifier identifier = new SqlIdentifier(functionName, SqlParserPos.ZERO);
+    return new HiveFunctionSqlNode(SqlParserPos.ZERO, identifier,  new SqlNodeList(sqlOperands, ZERO));
   }
 
   private SqlNode visitFunctionInternal(ASTNode node, ParseContext ctx, SqlLiteral quantifier) {
@@ -647,6 +658,22 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     ASTNode functionNode = (ASTNode) children.get(0);
     String functionName = functionNode.getText();
     List<SqlNode> sqlOperands = visitChildren(children, ctx);
+
+
+    if (functionName.equalsIgnoreCase("internal_interval")) {
+      SqlNode originalNode = sqlOperands.get(0);
+      SqlNode intervalType = sqlOperands.get(1);
+      SqlNode value = sqlOperands.get(2);
+
+      // Create a new SqlCall using SqlHiveInternalIntervalOperator
+      return SqlHiveInternalIntervalOperator.INSTANCE.createCall(
+              SqlParserPos.ZERO,
+              new SqlIdentifier("internal_interval", originalNode.getParserPosition()),
+              intervalType,
+              value
+      );
+    }
+
     Function hiveFunction = functionResolver.tryResolve(functionName, ctx.hiveTable.orElse(null),
         // The first element of sqlOperands is the operator itself. The actual # of operands is sqlOperands.size() - 1
         sqlOperands.size() - 1);
@@ -824,11 +851,34 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     return res.toString();
   }
 
-  @Override
-  protected SqlNode visitBigintLiteral(ASTNode node, ParseContext ctx) {
+
+//  todo number literal 如何构建sqlnode
+//  @Override
+//  protected SqlNode visitNumberLiteral(ASTNode node, ParseContext ctx) {
+//    String text = node.getText();
+//    checkState(text.length() >= 2);
+//    return SqlLiteral.createExactNumeric(text.substring(0, text.length() - 1), ZERO);
+//  }
+
+  protected SqlNode visitNumberLiteral(ASTNode node, ParseContext ctx) {
     String text = node.getText();
-    checkState(text.length() >= 2);
-    return SqlLiteral.createExactNumeric(text.substring(0, text.length() - 1), ZERO);
+    checkState(text.length() > 0);
+
+    // 检查是否有类型后缀
+    char lastChar = text.charAt(text.length() - 1);
+    if (Character.isLetter(lastChar)) {
+      // 如果有后缀，去掉它
+      text = text.substring(0, text.length() - 1);
+    }
+
+    // 根据数字的格式创建适当的 SqlLiteral
+    if (text.contains(".") || text.toLowerCase().contains("e")) {
+      // 浮点数
+      return SqlLiteral.createApproxNumeric(text, ZERO);
+    } else {
+      // 整数
+      return SqlLiteral.createExactNumeric(text, ZERO);
+    }
   }
 
   @Override
@@ -855,8 +905,10 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
         visit(ast, qc);
       }
     }
+
+    //todo add sql hint to here, temporarily set to null
     SqlSelect select = new SqlSelect(ZERO, qc.keywords, qc.selects, qc.from, qc.where, qc.grpBy, qc.having, null,
-        qc.orderBy, null, qc.fetch);
+        qc.orderBy, null, qc.fetch, null);
     if (cte != null) {
       // Calcite uses "SqlWith(SqlNodeList of SqlWithItem, SqlSelect)" to represent queries with WITH
       /** See {@link #visitCTE(ASTNode, ParseContext) visitCTE} for details */
@@ -919,6 +971,35 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
   protected SqlNode visitString(ASTNode node, ParseContext ctx) {
     return createBasicTypeSpec(SqlTypeName.VARCHAR);
   }
+
+  @Override
+  protected SqlDataTypeSpec visitMap(ASTNode node, ParseContext ctx) {
+    List<SqlNode> children = visitChildren(node, ctx);
+    SqlDataTypeSpec keySqlTypeNameSpec = (SqlDataTypeSpec) children.get(0);
+    SqlDataTypeSpec valSqlTypeNameSpec = (SqlDataTypeSpec) children.get(1);
+    SqlMapTypeNameSpec mapTypeSpec = new SqlMapTypeNameSpec(keySqlTypeNameSpec, valSqlTypeNameSpec, ZERO);
+    return new SqlDataTypeSpec(mapTypeSpec, ZERO);
+  }
+
+  @Override
+  protected SqlNode visitList(ASTNode node, ParseContext ctx) {
+    List<SqlNode> children = visitChildren(node, ctx);
+    SqlDataTypeSpec typeSpec = (SqlDataTypeSpec) children.get(0);
+      return new SqlArrayTypeSpec(typeSpec, true, ZERO);
+  }
+
+  protected SqlNode visitStruct(ASTNode node, ParseContext ctx) {
+    SqlParserPos pos = SqlParserPos.ZERO;
+    if (((ASTNode) node.getChildren().get(0)).getType()  == HiveParser.TOK_TABCOLLIST){
+      ASTNode colListsNode = (ASTNode) node.getChildren().get(0);
+      List<SqlNode> sqlNodeList =visitChildren (colListsNode, ctx);
+      return new SqlStructType(new SqlNodeList(sqlNodeList, ZERO), pos);
+    }else {
+      throw new UnhandledASTTokenException(node);
+    }
+
+  }
+
 
   @Override
   protected SqlNode visitBinary(ASTNode node, ParseContext ctx) {
@@ -1139,6 +1220,621 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
   protected SqlNode visitTableTokOrCol(ASTNode node, ParseContext ctx) {
     return visitChildren(node, ctx).get(0);
   }
+//
+//
+//
+//
+//
+//  /*
+//  * Create Table DDL
+//  *
+//  * */
+//
+//  //todo add create table
+//  @Override
+//  protected SqlNode visitCreateTable(ASTNode node, ParseContext ctx) {
+//    CreateTableOptions ctOptions = new CreateTableOptions();
+//    for (Node child : node.getChildren()) {
+//      ASTNode ast = (ASTNode) child;
+//      switch (ast.getType()) {
+//        case HiveParser.TOK_TABNAME:
+//          ctOptions.name = (SqlIdentifier) visitTabnameNode(ast, ctx);
+//          break;
+//        case HiveParser.TOK_IFNOTEXISTS:
+//          ctOptions.ifNotExists = true;
+//          break;
+//        case HiveParser.TOK_TABCOLLIST:
+//          ctOptions.columnList = (SqlNodeList) visitColumnList(ast, ctx);
+//          break;
+//        case HiveParser.TOK_QUERY:
+//          ctOptions.query = visitQueryNode(ast, ctx);
+//          break;
+//        case HiveParser.TOK_TABLESERIALIZER:
+//          ctOptions.tableSerializer = visitTableSerializer(ast, ctx);
+//          break;
+//        case HiveParser.TOK_TABLEFILEFORMAT:
+//          ctOptions.tableFileFormat = (SqlNodeList) visitTableFileFormat(ast, ctx);
+//          break;
+//        case HiveParser.TOK_FILEFORMAT_GENERIC:
+//          ctOptions.tableFileFormat = (SqlNodeList) visitFileFormatGeneric(ast, ctx);
+//          break;
+//        case HiveParser.TOK_TABLEROWFORMAT:
+//          ctOptions.tableRowFormat = (SqlCharStringLiteral) visitTableRowFormat(ast, ctx);
+//          break;
+//        default:
+//          break;
+//      }
+//    }
+//
+//    return new SqlCreateTable(ZERO,ctOptions.name,ctOptions.columnList,null,null,null,null,null,
+//            null,ctOptions.tableFileFormat,null,null,ctOptions.tableRowFormat,null,false,false,false,ctOptions.ifNotExists,ctOptions.query);
+//
+////  return SqlDdlNodes.createTable(ZERO, false, ctOptions.ifNotExists, ctOptions.name, ctOptions.columnList,
+////            ctOptions.query, ctOptions.tableSerializer, ctOptions.tableFileFormat, ctOptions.tableRowFormat);
+//  }
+
+  @Override
+  protected SqlNode visitCreateTable(ASTNode node, ParseContext ctx) {
+    CreateTableOptions ctOptions = new CreateTableOptions();
+    ctOptions.ifNotExists = false;
+    ctOptions.isExternal = false;
+    ctOptions.isTemporary = false;
+
+    for (Node child : node.getChildren()) {
+      ASTNode ast = (ASTNode) child;
+      switch (ast.getType()) {
+        case HiveParser.TOK_TABNAME:
+          ctOptions.name = (SqlIdentifier) visitTabnameNode(ast, ctx);
+          break;
+        case HiveParser.TOK_IFNOTEXISTS:
+          ctOptions.ifNotExists = true;
+          break;
+        case HiveParser.KW_EXTERNAL:
+          ctOptions.isExternal = true;
+          break;
+        case HiveParser.KW_TEMPORARY:
+          ctOptions.isTemporary = true;
+          break;
+        case HiveParser.TOK_TABCOLLIST:
+          ctOptions.columnList = (SqlNodeList) visitColumnList(ast, ctx);
+          break;
+        case HiveParser.TOK_TABLECOMMENT:
+          ctOptions.comment = (SqlCharStringLiteral) visit((ASTNode)ast.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_TABLEPARTCOLS:
+          ctOptions.partitionByList = (SqlNodeList) visitPartitionColumns(ast, ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_BUCKETS:
+          visitClusterAndSort(ast, ctOptions, ctx);
+          break;
+        case HiveParser.TOK_TABLEROWFORMAT:
+          ctOptions.rowFormat = visitRowFormat(ast, ctx);
+          break;
+        case HiveParser.TOK_FILEFORMAT_GENERIC:
+          ctOptions.storedAs = (SqlIdentifier) visit((ASTNode)ast.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_TABLELOCATION:
+          ctOptions.location = (SqlCharStringLiteral) visit((ASTNode)ast.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_TABLEPROPERTIES:
+          ctOptions.propertyList = visitTableProperties(ast, ctx);
+          break;
+        default:
+          // Handle other cases or throw an exception
+          break;
+      }
+    }
+
+    return new SqlCreateTable(
+            ZERO,
+            ctOptions.name,
+            ctOptions.columnList,
+            new ArrayList<>(), // tableConstraints
+            ctOptions.propertyList,
+            ctOptions.partitionByList,
+            ctOptions.clusterByList,
+            ctOptions.sortedByList,
+            null, // skewedByList
+            ctOptions.storedAs,
+            null, // storedBy
+            ctOptions.location,
+            ctOptions.rowFormat,
+            ctOptions.comment,
+            ctOptions.isTemporary,
+            ctOptions.isExternal,
+            false, // isTransactional
+            ctOptions.ifNotExists,
+            null // query
+    );
+  }
+
+
+  private SqlNode visitPartitionColumns(ASTNode node, ParseContext ctx) {
+    List<SqlNode> partitionCols = new ArrayList<>();
+    for (Node child : node.getChildren()) {
+      ASTNode ast = (ASTNode) child;
+      SqlIdentifier colName = (SqlIdentifier) visit((ASTNode)ast.getChild(0), ctx);
+      SqlDataTypeSpec colType = (SqlDataTypeSpec) visit((ASTNode)ast.getChild(1), ctx);
+      partitionCols.add(new SqlTableColumn.SqlRegularColumn(ZERO, colName, null, colType, null));
+    }
+    return new SqlNodeList(partitionCols, ZERO);
+  }
+
+  private void visitClusterAndSort(ASTNode node, CreateTableOptions ctOptions, ParseContext ctx) {
+    for (Node child : node.getChildren()) {
+      ASTNode ast = (ASTNode) child;
+      if (ast.getType() == HiveParser.TOK_TABCOLNAME) {
+        ctOptions.clusterByList = new SqlNodeList(visitChildren(ast, ctx), ZERO);
+      } else if (ast.getType() == HiveParser.TOK_TABSORTCOLNAMEASC) {
+        ctOptions.sortedByList = new SqlNodeList(visitChildren(ast, ctx), ZERO);
+      }
+    }
+  }
+
+  private SqlNode visitRowFormat(ASTNode node, ParseContext ctx) {
+    ASTNode child = (ASTNode) node.getChild(0);
+    if (child.getType() == HiveParser.TOK_SERDEPROPS) {
+      return visitRowFormatDelimited(child, ctx);
+    } else {
+      // Handle SERDE case
+      return null;
+    }
+  }
+
+  private SqlNode visitRowFormatDelimited(ASTNode node, ParseContext ctx) {
+    SqlCharStringLiteral fieldsTerminatedBy = null;
+    SqlCharStringLiteral escapedBy = null;
+    SqlCharStringLiteral collectionItemsTerminatedBy = null;
+    SqlCharStringLiteral mapKeysTerminatedBy = null;
+    SqlCharStringLiteral linesTerminatedBy = null;
+
+    for (Node child : node.getChildren()) {
+      ASTNode ast = (ASTNode) child;
+      switch (ast.getType()) {
+        case HiveParser.TOK_TABLEROWFORMATFIELD:
+          fieldsTerminatedBy = (SqlCharStringLiteral) visit((ASTNode)ast.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_TABLEROWFORMATCOLLITEMS:
+          collectionItemsTerminatedBy = (SqlCharStringLiteral) visit((ASTNode)ast.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_TABLEROWFORMATMAPKEYS:
+          mapKeysTerminatedBy = (SqlCharStringLiteral) visit((ASTNode)ast.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_TABLEROWFORMATLINES:
+          linesTerminatedBy = (SqlCharStringLiteral) visit((ASTNode)ast.getChild(0), ctx);
+          break;
+        // Handle other cases
+      }
+    }
+
+    return new SqlRowFormatDelimited(ZERO, fieldsTerminatedBy, escapedBy, collectionItemsTerminatedBy,
+            mapKeysTerminatedBy, linesTerminatedBy, null);
+  }
+
+  private SqlNodeList visitTableProperties(ASTNode node, ParseContext ctx) {
+    List<SqlNode> properties = new ArrayList<>();
+    for (Node child : node.getChildren()) {
+      ASTNode ast = (ASTNode) child;
+      if (ast.getType() == HiveParser.TOK_TABLEPROPERTY) {
+        SqlNode key = visit((ASTNode)ast.getChild(0), ctx);
+        SqlNode value = visit((ASTNode)ast.getChild(1), ctx);
+        properties.add(new SqlProperty((SqlIdentifier) key, value,ZERO));
+      }
+    }
+    return new SqlNodeList(properties, ZERO);
+  }
+
+  @Override
+  protected SqlNode visitColumnList(ASTNode node, ParseContext ctx) {
+    List<SqlNode> sqlNodeList = visitChildren(node, ctx);
+    return new SqlNodeList(sqlNodeList, ZERO);
+  }
+
+  //@Override
+//  protected SqlNode visitColumn(ASTNode node, ParseContext ctx) {
+//    List<SqlNode> children = visitChildren(node, ctx);
+//
+//    SqlIdentifier columnName = (SqlIdentifier) children.get(0);
+//    SqlDataTypeSpec dataType = (SqlDataTypeSpec) children.get(1);
+//    SqlNode comment = null;
+//    SqlColumnConstraint constraint = null;
+//
+//    for (int i = 2; i < children.size(); i++) {
+//      SqlNode child = children.get(i);
+//      if (child instanceof SqlCharStringLiteral) {
+//        comment = child;
+//      } else if (child instanceof SqlColumnConstraint) {
+//        constraint = (SqlColumnConstraint) child;
+//      } else if (child instanceof SqlCall) {
+//        // Handle potential constraint definitions that are not yet wrapped in SqlColumnConstraint
+//        SqlCall call = (SqlCall) child;
+//        switch (call.getKind()) {
+//          case OTHER:
+//            if (call.getOperator().getName().equalsIgnoreCase("PRIMARY KEY")) {
+//              constraint = SqlColumnConstraint.createPrimaryKey(call.getParserPosition());
+//            } else if (call.getOperator().getName().equalsIgnoreCase("UNIQUE")) {
+//              constraint = SqlColumnConstraint.createUnique(call.getParserPosition());
+//            } else if (call.getOperator().getName().equalsIgnoreCase("NOT NULL")) {
+//              constraint = SqlColumnConstraint.createNotNull(call.getParserPosition());
+//            }
+//            break;
+//          case DEFAULT:
+//            constraint = SqlColumnConstraint.createDefault(call.operand(0), call.getParserPosition());
+//            break;
+//          case CHECK:
+//            constraint = SqlColumnConstraint.createCheck(call.operand(0), call.getParserPosition());
+//            break;
+//        }
+//      }
+//    }
+//
+//    // If we have both a constraint and additional options (ENABLE/DISABLE, VALIDATE/NOVALIDATE, RELY/NORELY),
+//    // we need to combine them
+//    if (constraint != null) {
+//      boolean isEnabled = constraint.isEnabled();
+//      boolean isValidated = constraint.isValidated();
+//      boolean isRely = constraint.isRely();
+//
+//      for (SqlNode child : children) {
+//        if (child instanceof SqlLiteral) {
+//          String value = ((SqlLiteral) child).toValue();
+//          switch (value) {
+//            case "ENABLE":
+//              isEnabled = true;
+//              break;
+//            case "DISABLE":
+//              isEnabled = false;
+//              break;
+//            case "VALIDATE":
+//              isValidated = true;
+//              break;
+//            case "NOVALIDATE":
+//              isValidated = false;
+//              break;
+//            case "RELY":
+//              isRely = true;
+//              break;
+//            case "NORELY":
+//              isRely = false;
+//              break;
+//          }
+//        }
+//      }
+//
+//      constraint = new SqlColumnConstraint(
+//              SqlLiteral.createSymbol(constraint.getConstraintType(), constraint.getParserPosition()),
+//              constraint.getDefaultValue(),
+//              constraint.getCheckExpression(),
+//              SqlLiteral.createBoolean(isEnabled, constraint.getParserPosition()),
+//              SqlLiteral.createBoolean(isValidated, constraint.getParserPosition()),
+//              SqlLiteral.createBoolean(isRely, constraint.getParserPosition()),
+//              constraint.getParserPosition()
+//      );
+//    }
+//
+//    return new SqlTableColumn.SqlRegularColumn(ZERO, columnName, comment, dataType, constraint);
+//  }
+
+
+
+  @Override
+  protected SqlNode visitColumn(ASTNode node, ParseContext ctx) {
+    SqlIdentifier columnName = (SqlIdentifier) visit((ASTNode) node.getChild(0), ctx);
+    SqlDataTypeSpec dataType = (SqlDataTypeSpec) visit((ASTNode) node.getChild(1), ctx);
+    SqlNode comment = null;
+    SqlColumnConstraint constraint = null;
+
+    for (int i = 2; i < node.getChildCount(); i++) {
+      ASTNode child = (ASTNode) node.getChild(i);
+      switch (child.getType()) {
+        case HiveParser.StringLiteral:
+          comment = visit(child, ctx);
+          break;
+        case HiveParser.TOK_PRIMARY_KEY:
+          constraint = (SqlColumnConstraint) visitPrimaryKey(child, ctx);
+          break;
+        case HiveParser.TOK_UNIQUE:
+          constraint = (SqlColumnConstraint) visitUnique(child, ctx);
+          break;
+        case HiveParser.TOK_NOT_NULL:
+          constraint = (SqlColumnConstraint) visitNotNull(child, ctx);
+          break;
+        case HiveParser.TOK_DEFAULT_VALUE:
+          constraint = (SqlColumnConstraint) visitDefaultValue(child, ctx);
+          break;
+        case HiveParser.TOK_CHECK_CONSTRAINT:
+          constraint = (SqlColumnConstraint) visitCheckConstraint(child, ctx);
+          break;
+      }
+    }
+
+    return new SqlTableColumn.SqlRegularColumn(ZERO, columnName, comment, dataType, constraint);
+  }
+
+
+  @Override
+  protected SqlNode visitPrimaryKey(ASTNode node, ParseContext ctx) {
+    return createColumnConstraint(SqlColumnConstraint.SqlColumnConstraintType.PRIMARY_KEY, node, ctx);
+  }
+
+  @Override
+  protected SqlNode visitUnique(ASTNode node, ParseContext ctx) {
+    return createColumnConstraint(SqlColumnConstraint.SqlColumnConstraintType.UNIQUE, node, ctx);
+  }
+
+  @Override
+  protected SqlNode visitNotNull(ASTNode node, ParseContext ctx) {
+    return createColumnConstraint(SqlColumnConstraint.SqlColumnConstraintType.NOT_NULL, node, ctx);
+  }
+
+  @Override
+  protected SqlNode visitDefaultValue(ASTNode node, ParseContext ctx) {
+    SqlNode defaultValue = visit((ASTNode) node.getChild(0), ctx);
+
+//    // 处理特殊的默认值
+//    if (defaultValue instanceof SqlIdentifier) {
+//      String defaultValueStr = ((SqlIdentifier) defaultValue).getSimple();
+//      switch (defaultValueStr.toUpperCase()) {
+//        case "CURRENT_USER":
+//          defaultValue = SqlStdOperatorTable.CURRENT_USER.createCall(ZERO);
+//          break;
+//        case "CURRENT_DATE":
+//          defaultValue = SqlStdOperatorTable.CURRENT_DATE.createCall(ZERO);
+//          break;
+//        case "CURRENT_TIMESTAMP":
+//          defaultValue = SqlStdOperatorTable.CURRENT_TIMESTAMP.createCall(ZERO);
+//          break;
+//        case "NULL":
+//          defaultValue = SqlLiteral.createNull(ZERO);
+//          break;
+//      }
+//    }
+
+    return SqlColumnConstraint.createDefault(defaultValue, ZERO);
+
+//    SqlNode defaultValue = visit((ASTNode) node.getChild(0), ctx);
+//    return createColumnConstraint(SqlColumnConstraint.SqlColumnConstraintType.DEFAULT, node, ctx, defaultValue);
+  }
+
+  @Override
+  protected SqlNode visitCheckConstraint(ASTNode node, ParseContext ctx) {
+    SqlNode checkExpression = visit((ASTNode) node.getChild(0), ctx);
+    return createColumnConstraint(SqlColumnConstraint.SqlColumnConstraintType.CHECK, node, ctx, null, checkExpression);
+  }
+
+  private SqlColumnConstraint createColumnConstraint(SqlColumnConstraint.SqlColumnConstraintType type, ASTNode node, ParseContext ctx, SqlNode defaultValue, SqlNode checkExpression) {
+    boolean isEnabled = true;
+    boolean isValidated = true;
+    boolean isRely = true;
+
+    for (int i = 0; i < node.getChildCount(); i++) {
+      ASTNode child = (ASTNode) node.getChild(i);
+      switch (child.getType()) {
+        case HiveParser.TOK_ENABLE:
+          isEnabled = true;
+          break;
+        case HiveParser.TOK_DISABLE:
+          isEnabled = false;
+          break;
+        case HiveParser.TOK_VALIDATE:
+          isValidated = true;
+          break;
+        case HiveParser.TOK_NOVALIDATE:
+          isValidated = false;
+          break;
+        case HiveParser.TOK_RELY:
+          isRely = true;
+          break;
+        case HiveParser.TOK_NORELY:
+          isRely = false;
+          break;
+      }
+    }
+
+    return new SqlColumnConstraint(
+            SqlLiteral.createSymbol(type, ZERO),
+            defaultValue,
+            checkExpression,
+            SqlLiteral.createBoolean(isEnabled, ZERO),
+            SqlLiteral.createBoolean(isValidated, ZERO),
+            SqlLiteral.createBoolean(isRely, ZERO),
+            ZERO
+    );
+  }
+
+  // Overloads for convenience
+  private SqlColumnConstraint createColumnConstraint(SqlColumnConstraint.SqlColumnConstraintType type, ASTNode node, ParseContext ctx) {
+    return createColumnConstraint(type, node, ctx, null, null);
+  }
+
+  private SqlColumnConstraint createColumnConstraint(SqlColumnConstraint.SqlColumnConstraintType type, ASTNode node, ParseContext ctx, SqlNode defaultValue) {
+    return createColumnConstraint(type, node, ctx, defaultValue, null);
+  }
+
+
+
+  //@Override
+//  protected SqlNode visitUnique(ASTNode node, ParseContext ctx) {
+//    List<SqlNode> children = visitChildren(node, ctx);
+//    boolean isDisabled = false;
+//    boolean isNoValidate = false;
+//    boolean isNoRely = true; // Default to NORELY as it's not explicitly specified
+//
+//    for (SqlNode child : children) {
+//      if (child instanceof SqlLiteral) {
+//        SqlLiteral literal = (SqlLiteral) child;
+//        if (literal.getValue().equals("DISABLE")) {
+//          isDisabled = true;
+//        } else if (literal.getValue().equals("NOVALIDATE")) {
+//          isNoValidate = true;
+//        }
+//      }
+//    }
+//
+//    return new SqlTableConstraint(
+//            null, // constraintName
+//            SqlLiteral.createSymbol(SqlTableConstraint.SqlConstraintType.UNIQUE, ZERO),
+//            null, // columns (will be set later in the parent node)
+//            null, // condition (not applicable for UNIQUE constraints)
+//            SqlLiteral.createBoolean(!isDisabled, ZERO), // enable
+//            SqlLiteral.createBoolean(!isNoValidate, ZERO), // validate
+//            SqlLiteral.createBoolean(!isNoRely, ZERO), // rely
+//            false, // isTableConstraint (this will be determined by the parent node)
+//            ZERO // pos
+//    );
+//  }
+
+  //@Override
+//  protected SqlNode visitColumnConstraint(ASTNode node, ParseContext ctx) {
+//    SqlColumnConstraint.SqlColumnConstraintType constraintType = null;
+//    SqlNode defaultValue = null;
+//    SqlNode checkExpression = null;
+//    boolean isEnabled = true;
+//    boolean isValidated = false;
+//    boolean isRely = false;
+//
+//    for (int i = 0; i < node.getChildCount(); i++) {
+//      ASTNode child = (ASTNode) node.getChild(i);
+//      switch (child.getType()) {
+//        case HiveParser.TOK_PRIMARY_KEY:
+//          constraintType = SqlColumnConstraint.SqlColumnConstraintType.PRIMARY_KEY;
+//          break;
+//        case HiveParser.TOK_UNIQUE:
+//          constraintType = SqlColumnConstraint.SqlColumnConstraintType.UNIQUE;
+//          break;
+//        case HiveParser.TOK_NOT_NULL:
+//          constraintType = SqlColumnConstraint.SqlColumnConstraintType.NOT_NULL;
+//          break;
+//        case HiveParser.TOK_DEFAULT_VALUE:
+//          constraintType = SqlColumnConstraint.SqlColumnConstraintType.DEFAULT;
+//          defaultValue = visit(child.getChild(0), ctx);
+//          break;
+//        case HiveParser.TOK_CHECK_CONSTRAINT:
+//          constraintType = SqlColumnConstraint.SqlColumnConstraintType.CHECK;
+//          checkExpression = visit(child.getChild(0), ctx);
+//          break;
+//        case HiveParser.TOK_ENABLE:
+//          isEnabled = true;
+//          break;
+//        case HiveParser.TOK_DISABLE:
+//          isEnabled = false;
+//          break;
+//        case HiveParser.TOK_VALIDATE:
+//          isValidated = true;
+//          break;
+//        case HiveParser.TOK_NOVALIDATE:
+//          isValidated = false;
+//          break;
+//        case HiveParser.TOK_RELY:
+//          isRely = true;
+//          break;
+//        case HiveParser.TOK_NORELY:
+//          isRely = false;
+//          break;
+//      }
+//    }
+//
+//    return new SqlColumnConstraint(
+//            SqlLiteral.createSymbol(constraintType, ZERO),
+//            defaultValue,
+//            checkExpression,
+//            SqlLiteral.createBoolean(isEnabled, ZERO),
+//            SqlLiteral.createBoolean(isValidated, ZERO),
+//            SqlLiteral.createBoolean(isRely, ZERO),
+//            ZERO
+//    );
+//  }
+
+
+  @Override
+  protected SqlNode visitDisable(ASTNode node, ParseContext ctx) {
+    return SqlLiteral.createCharString("DISABLE", ZERO);
+  }
+
+  @Override
+  protected SqlNode visitNoValidate(ASTNode node, ParseContext ctx) {
+    return SqlLiteral.createCharString("NOVALIDATE", ZERO);
+  }
+
+
+  @Override
+  protected SqlNode visitIfNotExists(ASTNode node, ParseContext ctx) {
+    return SqlLiteral.createBoolean(true, ZERO);
+  }
+
+  @Override
+  protected SqlNode visitTableRowFormat(ASTNode node, ParseContext ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitSerdeName(ASTNode node, ParseContext ctx) {
+    return visit((ASTNode) node.getChildren().get(0), ctx);
+  }
+
+  @Override
+  protected SqlNode visitTableSerializer(ASTNode node, ParseContext ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitTableFileFormat(ASTNode node, ParseContext ctx) {
+    List<SqlNode> sqlNodeList = visitChildren(node, ctx);
+    return new SqlNodeList(sqlNodeList, ZERO);
+  }
+
+  @Override
+  protected SqlNode visitFileFormatGeneric(ASTNode node, ParseContext ctx) {
+    return new SqlNodeList(Arrays.asList(visitChildren(node, ctx).get(0)), ZERO);
+  }
+
+  @Override
+  protected SqlNode visitSerdeProps(ASTNode node, ParseContext ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitTableRowFormatField(ASTNode node, ParseContext ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+
+  //@Override
+//  protected SqlNode visitCheckConstraint(ASTNode node, ParseContext ctx) {
+//    SqlNode condition = visit((ASTNode) node.getChildren().get(0), ctx);
+////    SqlNode condition = visit(getASTChild(node, 0), ctx);
+//    boolean isEnabled = false;
+//    boolean isValidated = false;
+//    boolean isRely = false;
+//
+//    for (int i = 1; i < node.getChildCount(); i++) {
+//      ASTNode child = (ASTNode) node.getChildren().get(i);
+//      switch (child.getType()) {
+//        case HiveParser.TOK_ENABLE:
+//          isEnabled = true;
+//          break;
+//        case HiveParser.TOK_VALIDATE:
+//          isValidated = true;
+//          break;
+//        case HiveParser.TOK_RELY:
+//          isRely = true;
+//          break;
+//      }
+//    }
+//
+//    return new SqlTableConstraint(
+//            null, // constraintName
+//            SqlLiteral.createSymbol(SqlTableConstraint.SqlConstraintType.CHECK, ZERO), // constraintType
+//            null, // columns (not applicable for CHECK constraints)
+//            condition,
+//            SqlLiteral.createBoolean(isEnabled, ZERO), // enable
+//            SqlLiteral.createBoolean(isValidated, ZERO), // validate
+//            SqlLiteral.createBoolean(isRely, ZERO), // rely
+//            false, // isTableConstraint (this is a column constraint)
+//            ZERO // pos
+//    );
+//  }
+
 
 
   private SqlIntervalQualifier fromASTIntervalTypeToSqlIntervalQualifier(ASTNode node) {
@@ -1162,6 +1858,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     }
     throw new UnhandledASTTokenException(node);
   }
+
 
 
   //终结符，叶子节点，不可再分
@@ -1200,4 +1897,33 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
       return hiveTable;
     }
   }
+
+
+  static class CreateTableOptions {
+    SqlIdentifier name;
+    SqlNodeList columnList;
+    SqlNode query;
+    boolean ifNotExists;
+    boolean isExternal;
+    boolean isTemporary;
+    SqlCharStringLiteral comment;
+    SqlNodeList partitionByList;
+    SqlNodeList clusterByList;
+    SqlNodeList sortedByList;
+    SqlNode rowFormat;
+    SqlIdentifier storedAs;
+    SqlCharStringLiteral location;
+    SqlNodeList propertyList;
+  }
+
+
+//  static class CreateTableOptions {
+//    SqlIdentifier name;
+//    SqlNodeList columnList;
+//    SqlNode query;
+//    boolean ifNotExists;
+//    SqlNode tableSerializer;
+//    SqlNodeList tableFileFormat;
+//    SqlCharStringLiteral tableRowFormat;
+//  }
 }
