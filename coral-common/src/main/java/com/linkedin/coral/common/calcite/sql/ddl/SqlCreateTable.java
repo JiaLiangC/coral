@@ -43,7 +43,7 @@ public static final SqlSpecialOperator OPERATOR =
           public SqlCall createCall(@Nullable final SqlLiteral functionQualifier,
                                     final SqlParserPos pos,
                                     final @Nullable SqlNode... operands) {
-            if (operands.length < 18) {
+            if (operands.length < 19) {
               throw new IllegalArgumentException("Invalid number of operands for CREATE TABLE");
             }
 
@@ -61,21 +61,23 @@ public static final SqlSpecialOperator OPERATOR =
             SqlNodeList propertyList = (SqlNodeList) operands[3];
             SqlNodeList partitionByList = (SqlNodeList) operands[4];
             SqlNodeList clusterByList = (SqlNodeList) operands[5];
-            SqlNodeList sortedByList = (SqlNodeList) operands[6];
-            SqlNodeList skewedByList = (SqlNodeList) operands[7];
-            SqlNode storedAs = operands[8];
-            SqlNode storedBy = operands[9];
-            SqlCharStringLiteral location = (SqlCharStringLiteral) operands[10];
-            SqlNode rowFormat = operands[11];
-            SqlCharStringLiteral comment = (SqlCharStringLiteral) operands[12];
-            final boolean isTemporary = operands[13] != null && ((SqlLiteral) operands[13]).booleanValue();
-            boolean isExternal = operands[14] != null && ((SqlLiteral) operands[14]).booleanValue();
-            boolean isTransactional = operands[15] != null && ((SqlLiteral) operands[15]).booleanValue();
-            boolean ifNotExists = operands[16] != null && ((SqlLiteral) operands[16]).booleanValue();
-            SqlNode query = operands[17];
+            SqlNode bucketNum = operands[6];
+
+            SqlNodeList sortedByList = (SqlNodeList) operands[7];
+            SqlNodeList skewedByList = (SqlNodeList) operands[8];
+            SqlNode storedAs = operands[9];
+            SqlNode storedBy = operands[10];
+            SqlCharStringLiteral location = (SqlCharStringLiteral) operands[11];
+            SqlNode rowFormat = operands[12];
+            SqlCharStringLiteral comment = (SqlCharStringLiteral) operands[13];
+            final boolean isTemporary = operands[14] != null && ((SqlLiteral) operands[14]).booleanValue();
+            boolean isExternal = operands[15] != null && ((SqlLiteral) operands[15]).booleanValue();
+            boolean isTransactional = operands[16] != null && ((SqlLiteral) operands[16]).booleanValue();
+            boolean ifNotExists = operands[17] != null && ((SqlLiteral) operands[17]).booleanValue();
+            SqlNode query = operands[18];
 
             return new SqlCreateTable(pos, tableName, columnList, tableConstraints, propertyList,
-                    partitionByList, clusterByList, sortedByList, skewedByList, storedAs, storedBy,
+                    partitionByList, clusterByList,bucketNum, sortedByList, skewedByList, storedAs, storedBy,
                     location, rowFormat, comment, isTemporary, isExternal, isTransactional, ifNotExists, query);
           }
         };
@@ -107,20 +109,22 @@ public static final SqlSpecialOperator OPERATOR =
   private final boolean isExternal ;
   private final boolean isTemporary ;
   private final boolean isTransactional ;
+  private final SqlNode bucketNum;
+
 
   public SqlCreateTable(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList columnList,
       List<SqlTableConstraint> tableConstraints, SqlNodeList propertyList, SqlNodeList partitionKeyList,
-      SqlNodeList clusterByList, SqlNodeList sortedByList, SqlNodeList skewedByList, SqlNode storedAs, SqlNode storedBy,
+      SqlNodeList clusterByList,SqlNode bucketNum, SqlNodeList sortedByList, SqlNodeList skewedByList, SqlNode storedAs, SqlNode storedBy,
       SqlCharStringLiteral location, SqlNode rowFormat, @Nullable SqlCharStringLiteral comment, boolean isTemporary,
       boolean isExternal, boolean isTransactional, boolean ifNotExists, @Nullable SqlNode query) {
-    this(OPERATOR, pos, tableName, columnList, tableConstraints, propertyList, partitionKeyList, clusterByList,
+    this(OPERATOR, pos, tableName, columnList, tableConstraints, propertyList, partitionKeyList, clusterByList,bucketNum,
         sortedByList, skewedByList, storedAs, storedBy, location, rowFormat, comment, isTemporary, isExternal,
         isTransactional, ifNotExists, query);
   }
 
   protected SqlCreateTable(SqlSpecialOperator operator, SqlParserPos pos, SqlIdentifier tableName,
       SqlNodeList columnList, List<SqlTableConstraint> tableConstraints, SqlNodeList propertyList,
-      SqlNodeList partitionKeyList, SqlNodeList clusterByList, SqlNodeList sortedByList, SqlNodeList skewedByList,
+      SqlNodeList partitionKeyList, SqlNodeList clusterByList,SqlNode bucketNum, SqlNodeList sortedByList, SqlNodeList skewedByList,
       SqlNode storedAs, SqlNode storedBy, SqlCharStringLiteral location, SqlNode rowFormat,
       @Nullable SqlCharStringLiteral comment, boolean isTemporary, boolean isExternal, boolean isTransactional,
       boolean ifNotExists, @Nullable SqlNode query) {
@@ -131,6 +135,7 @@ public static final SqlSpecialOperator OPERATOR =
     this.propertyList = propertyList;
     this.partitionByList = partitionKeyList;
     this.clusterByList = clusterByList;
+    this.bucketNum = bucketNum;
     this.sortedByList = sortedByList;
     this.skewedByList = skewedByList;
     this.storedAs = storedAs;
@@ -152,12 +157,16 @@ public static final SqlSpecialOperator OPERATOR =
   @Override
   public @Nonnull List<SqlNode> getOperandList() {
     return ImmutableNullableList.of(tableName, columnList, new SqlNodeList(tableConstraints, ZERO),
-        propertyList, partitionByList, clusterByList, sortedByList, skewedByList, storedAs, storedBy, location,
+        propertyList, partitionByList, clusterByList,bucketNum, sortedByList, skewedByList, storedAs, storedBy, location,
         rowFormat, comment,SqlLiteral.createBoolean(isTemporary,ZERO),SqlLiteral.createBoolean(isExternal,ZERO),SqlLiteral.createBoolean(isTransactional,ZERO),SqlLiteral.createBoolean(ifNotExists,ZERO), query);
   }
 
   public SqlIdentifier getTableName() {
     return tableName;
+  }
+
+  public SqlNode getBucketNum() {
+    return bucketNum;
   }
 
   public SqlNodeList getColumnList() {
@@ -326,16 +335,23 @@ public static final SqlSpecialOperator OPERATOR =
       SqlWriter.Frame clusteredByFrame = writer.startList("(", ")");
       clusterByList.unparse(writer, leftPrec, rightPrec);
       writer.endList(clusteredByFrame);
+
+      if (sortedByList != null && sortedByList.size() > 0) {
+        writer.keyword("SORTED BY");
+        SqlWriter.Frame sortedByFrame = writer.startList("(", ")");
+        sortedByList.unparse(writer, leftPrec, rightPrec);
+        writer.endList(sortedByFrame);
+      }
+
+      if (bucketNum != null) {
+        writer.keyword("INTO");
+        bucketNum.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("BUCKETS");
+      }
+
       writer.newlineAndIndent();
     }
 
-    if (sortedByList != null && sortedByList.size() > 0) {
-      writer.keyword("SORTED BY");
-      SqlWriter.Frame sortedByFrame = writer.startList("(", ")");
-      sortedByList.unparse(writer, leftPrec, rightPrec);
-      writer.endList(sortedByFrame);
-      writer.newlineAndIndent();
-    }
     if (skewedByList != null && skewedByList.size() > 0) {
       writer.keyword("SKEWED BY");
       SqlWriter.Frame skewedByFrame = writer.startList("(", ")");
@@ -344,8 +360,26 @@ public static final SqlSpecialOperator OPERATOR =
       writer.newlineAndIndent();
     }
 
+    if (rowFormat !=null ){
+      rowFormat.unparse(writer, leftPrec, rightPrec);
+    }
+
+    if (storedAs !=null){
+      writer.keyword("STORED AS");
+      storedAs.unparse(writer, leftPrec, rightPrec);
+    }
+
+    if (storedBy !=null){
+      storedBy.unparse(writer, leftPrec, rightPrec);
+    }
+
+    if (location !=null){
+      writer.keyword("LOCATION");
+      location.unparse(writer, leftPrec, rightPrec);
+    }
+
     if (this.propertyList !=null && this.propertyList.size() > 0) {
-      writer.keyword("WITH");
+      writer.keyword("TBLPROPERTIES");
       SqlWriter.Frame withFrame = writer.startList("(", ")");
       for (SqlNode property : propertyList) {
         SqlUnparseUtils.printIndent(writer);

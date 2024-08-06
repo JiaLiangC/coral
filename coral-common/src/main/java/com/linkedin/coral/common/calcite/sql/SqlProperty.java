@@ -9,14 +9,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 
-import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.calcite.sql.SqlWriter;
+import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 import org.apache.calcite.util.NlsString;
@@ -31,16 +24,16 @@ public class SqlProperty extends SqlCall {
   /** Use this operator only if you don't have a better one. */
   protected static final SqlOperator OPERATOR = new SqlSpecialOperator("Property", SqlKind.OTHER);
 
-  private final SqlIdentifier key;
+  private final SqlCharStringLiteral key;
   private final SqlNode value;
 
-  public SqlProperty(SqlIdentifier key, SqlNode value, SqlParserPos pos) {
+  public SqlProperty(SqlCharStringLiteral key, SqlNode value, SqlParserPos pos) {
     super(pos);
     this.key = requireNonNull(key, "Property key is missing");
     this.value = requireNonNull(value, "Property value is missing");
   }
 
-  public SqlIdentifier getKey() {
+  public SqlCharStringLiteral getKey() {
     return key;
   }
 

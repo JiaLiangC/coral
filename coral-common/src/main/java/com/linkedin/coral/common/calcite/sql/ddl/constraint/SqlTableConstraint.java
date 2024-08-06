@@ -1,8 +1,3 @@
-/**
- * Copyright 2024 LinkedIn Corporation. All rights reserved.
- * Licensed under the BSD-2 Clause license.
- * See LICENSE in the project root for license information.
- */
 package com.linkedin.coral.common.calcite.sql.ddl.constraint;
 
 import java.util.List;
@@ -10,138 +5,120 @@ import java.util.Optional;
 
 import javax.annotation.Nullable;
 
-import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.calcite.sql.SqlWriter;
+import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
-
-/**
- * Table constraint of a table definition.
- *
- * <p>Syntax from SQL-2011 IWD 9075-2:201?(E) 11.3 &lt;table definition&gt;:
- *
- * <pre>
- * &lt;table constraint definition&gt; ::=
- *   [ &lt;constraint name definition&gt; ] &lt;table constraint&gt;
- *       [ &lt;constraint characteristics&gt; ]
- *
- * &lt;table constraint&gt; ::=
- *     &lt;unique constraint definition&gt;
- *
- * &lt;unique constraint definition&gt; ::=
- *     &lt;unique specification&gt; &lt;left paren&gt; &lt;unique column list&gt; &lt;right paren&gt;
- *
- * &lt;unique specification&gt; ::=
- *     UNIQUE
- *   | PRIMARY KEY
- * </pre>
- */
 public class SqlTableConstraint extends SqlCall {
-  /** Use this operator only if you don't have a better one. */
-  private static final SqlOperator OPERATOR = new SqlSpecialOperator("SqlTableConstraint", SqlKind.OTHER);
+    private static final SqlOperator OPERATOR = new SqlSpecialOperator("SqlTableConstraint", SqlKind.OTHER);
 
-  private final SqlIdentifier constraintName;
-  private final SqlLiteral uniqueSpec;
-  private final SqlNodeList columns;
-  private final SqlLiteral enforcement;
-  // Whether this is a table constraint, currently it is only used for SQL unparse.
-  private final boolean isTableConstraint;
+    private final SqlIdentifier constraintName;
+    private final SqlLiteral constraintType;
+    private final SqlNodeList columns;
+    private final SqlNode condition;
+    private final SqlLiteral enable;
+    private final SqlLiteral validate;
+    private final SqlLiteral rely;
+    private final boolean isTableConstraint;
 
-  /**
-   * Creates a table constraint node.
-   *
-   * @param constraintName Constraint name
-   * @param uniqueSpec Unique specification
-   * @param columns Column list on which the constraint enforces or null if this is a column
-   *     constraint
-   * @param enforcement Whether the constraint is enforced
-   * @param isTableConstraint Whether this is a table constraint
-   * @param pos Parser position
-   */
-  public SqlTableConstraint(@Nullable SqlIdentifier constraintName, SqlLiteral uniqueSpec, SqlNodeList columns,
-      @Nullable SqlLiteral enforcement, boolean isTableConstraint, SqlParserPos pos) {
-    super(pos);
-    this.constraintName = constraintName;
-    this.uniqueSpec = uniqueSpec;
-    this.columns = columns;
-    this.enforcement = enforcement;
-    this.isTableConstraint = isTableConstraint;
-  }
-
-  @Override
-  public SqlOperator getOperator() {
-    return OPERATOR;
-  }
-
-  /** Returns whether the constraint is UNIQUE. */
-  public boolean isUnique() {
-    return this.uniqueSpec.getValueAs(SqlUniqueSpec.class) == SqlUniqueSpec.UNIQUE;
-  }
-
-  /** Returns whether the constraint is PRIMARY KEY. */
-  public boolean isPrimaryKey() {
-    return this.uniqueSpec.getValueAs(SqlUniqueSpec.class) == SqlUniqueSpec.PRIMARY_KEY;
-  }
-
-  /** Returns whether the constraint is enforced. */
-  public boolean isEnforced() {
-    // Default is enforced.
-    return this.enforcement == null
-        || this.enforcement.getValueAs(SqlConstraintEnforcement.class) == SqlConstraintEnforcement.ENFORCED;
-  }
-
-  public Optional<String> getConstraintName() {
-    String ret = constraintName != null ? constraintName.getSimple() : null;
-    return Optional.ofNullable(ret);
-  }
-
-  public Optional<SqlIdentifier> getConstraintNameIdentifier() {
-    return Optional.ofNullable(constraintName);
-  }
-
-  public SqlNodeList getColumns() {
-    return columns;
-  }
-
-  public boolean isTableConstraint() {
-    return isTableConstraint;
-  }
-
-  /** Returns the columns as a string array. */
-  public String[] getColumnNames() {
-    return columns.getList().stream().map(col -> ((SqlIdentifier) col).getSimple()).toArray(String[]::new);
-  }
-
-  @Override
-  public List<SqlNode> getOperandList() {
-    return ImmutableNullableList.of(constraintName, uniqueSpec, columns, enforcement);
-  }
-
-  @Override
-  public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-    if (this.constraintName != null) {
-      writer.keyword("CONSTRAINT");
-      this.constraintName.unparse(writer, leftPrec, rightPrec);
+    public SqlTableConstraint(@Nullable SqlIdentifier constraintName, SqlLiteral constraintType,
+                              @Nullable SqlNodeList columns, @Nullable SqlNode condition, SqlLiteral enable,
+                              SqlLiteral validate, SqlLiteral rely, boolean isTableConstraint, SqlParserPos pos) {
+        super(pos);
+        this.constraintName = constraintName;
+        this.constraintType = constraintType;
+        this.columns = columns;
+        this.condition = condition;
+        this.enable = enable;
+        this.validate = validate;
+        this.rely = rely;
+        this.isTableConstraint = isTableConstraint;
     }
-    this.uniqueSpec.unparse(writer, leftPrec, rightPrec);
-    if (isTableConstraint) {
-      SqlWriter.Frame frame = writer.startList("(", ")");
-      for (SqlNode column : this.columns) {
-        writer.sep(",", false);
-        column.unparse(writer, leftPrec, rightPrec);
-      }
-      writer.endList(frame);
+
+    @Override
+    public SqlOperator getOperator() {
+        return OPERATOR;
     }
-    if (this.enforcement != null) {
-      this.enforcement.unparse(writer, leftPrec, rightPrec);
+
+    public boolean isPrimaryKey() {
+        return this.constraintType.getValueAs(SqlConstraintType.class) == SqlConstraintType.PRIMARY_KEY;
     }
-  }
+
+    public boolean isUnique() {
+        return this.constraintType.getValueAs(SqlConstraintType.class) == SqlConstraintType.UNIQUE;
+    }
+
+    public boolean isCheck() {
+        return this.constraintType.getValueAs(SqlConstraintType.class) == SqlConstraintType.CHECK;
+    }
+
+    public boolean isEnabled() {
+        return this.enable.getValueAs(Boolean.class);
+    }
+
+    public boolean isValidated() {
+        return this.validate.getValueAs(Boolean.class);
+    }
+
+    public boolean isRely() {
+        return this.rely.getValueAs(Boolean.class);
+    }
+
+    public Optional<String> getConstraintName() {
+        return Optional.ofNullable(constraintName).map(SqlIdentifier::getSimple);
+    }
+
+    public Optional<SqlIdentifier> getConstraintNameIdentifier() {
+        return Optional.ofNullable(constraintName);
+    }
+
+    public SqlNodeList getColumns() {
+        return columns;
+    }
+
+    public SqlNode getCondition() {
+        return condition;
+    }
+
+    public boolean isTableConstraint() {
+        return isTableConstraint;
+    }
+
+    public String[] getColumnNames() {
+        return columns == null ? new String[0] :
+                columns.getList().stream().map(col -> ((SqlIdentifier) col).getSimple()).toArray(String[]::new);
+    }
+
+    @Override
+    public List<SqlNode> getOperandList() {
+        return ImmutableNullableList.of(constraintName, constraintType, columns, condition, enable, validate, rely);
+    }
+
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        if (constraintName != null) {
+            writer.keyword("CONSTRAINT");
+            constraintName.unparse(writer, leftPrec, rightPrec);
+        }
+        constraintType.unparse(writer, leftPrec, rightPrec);
+        if (isTableConstraint && columns != null) {
+            SqlWriter.Frame frame = writer.startList("(", ")");
+            for (SqlNode column : columns) {
+                writer.sep(",");
+                column.unparse(writer, leftPrec, rightPrec);
+            }
+            writer.endList(frame);
+        }
+        if (condition != null) {
+            writer.keyword("CHECK");
+            condition.unparse(writer, leftPrec, rightPrec);
+        }
+        writer.keyword(isEnabled() ? "ENABLE" : "DISABLE");
+        writer.keyword(isValidated() ? "VALIDATE" : "NOVALIDATE");
+        writer.keyword(isRely() ? "RELY" : "NORELY");
+    }
+
+    public enum SqlConstraintType implements SqlLiteral.SqlSymbol {
+        PRIMARY_KEY, UNIQUE, CHECK
+    }
 }

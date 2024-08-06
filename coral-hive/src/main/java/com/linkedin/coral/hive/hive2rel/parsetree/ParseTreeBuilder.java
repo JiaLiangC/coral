@@ -1333,6 +1333,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
             ctOptions.propertyList,
             ctOptions.partitionByList,
             ctOptions.clusterByList,
+            ctOptions.bucketNum,
             ctOptions.sortedByList,
             null, // skewedByList
             ctOptions.storedAs,
@@ -1360,16 +1361,29 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     return new SqlNodeList(partitionCols, ZERO);
   }
 
+
+  /*├TOK_ALTERTABLE_BUCKETS (852)
+    │   │   ├TOK_TABCOLNAME (1232)
+    │   │   │   └id (24)
+    │   │   ├TOK_TABCOLNAME (1232)
+    │   │   │   └TOK_TABSORTCOLNAMEASC (1260)
+    │   │   │       └TOK_NULLS_FIRST (1086)
+    │   │   │           └name (24)
+    │   │   └16 (420)
+    */
   private void visitClusterAndSort(ASTNode node, CreateTableOptions ctOptions, ParseContext ctx) {
     for (Node child : node.getChildren()) {
       ASTNode ast = (ASTNode) child;
-      if (ast.getType() == HiveParser.TOK_TABCOLNAME) {
+      if (ast.getType() == HiveParser.TOK_TABCOLNAME &&  ((ASTNode) ast.getChildren().get(0)).getType() == HiveParser.Identifier) {
         ctOptions.clusterByList = new SqlNodeList(visitChildren(ast, ctx), ZERO);
-      } else if (ast.getType() == HiveParser.TOK_TABSORTCOLNAMEASC) {
+      } else if (ast.getType() == HiveParser.TOK_TABCOLNAME &&  ((ASTNode) ast.getChildren().get(0)).getType() == HiveParser.TOK_TABSORTCOLNAMEASC) {
         ctOptions.sortedByList = new SqlNodeList(visitChildren(ast, ctx), ZERO);
+      }else if(ast.getType() == HiveParser.Number){
+        ctOptions.bucketNum = visit(ast, ctx);
       }
     }
   }
+
 
   private SqlNode visitRowFormat(ASTNode node, ParseContext ctx) {
     ASTNode child = (ASTNode) node.getChild(0);
@@ -1415,11 +1429,19 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     List<SqlNode> properties = new ArrayList<>();
     for (Node child : node.getChildren()) {
       ASTNode ast = (ASTNode) child;
-      if (ast.getType() == HiveParser.TOK_TABLEPROPERTY) {
-        SqlNode key = visit((ASTNode)ast.getChild(0), ctx);
-        SqlNode value = visit((ASTNode)ast.getChild(1), ctx);
-        properties.add(new SqlProperty((SqlIdentifier) key, value,ZERO));
+
+      if (ast.getType() == HiveParser.TOK_TABLEPROPLIST){
+        for (Node tok_child : ast.getChildren()) {
+          ASTNode ast_child =  (ASTNode)tok_child;
+          if (ast_child.getType() == HiveParser.TOK_TABLEPROPERTY) {
+            SqlNode key = visit((ASTNode)ast.getChild(0), ctx);
+            SqlNode value = visit((ASTNode)ast.getChild(1), ctx);
+            properties.add(new SqlProperty((SqlCharStringLiteral) key, value,ZERO));
+          }
+        }
       }
+
+
     }
     return new SqlNodeList(properties, ZERO);
   }
@@ -1764,6 +1786,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
 
   @Override
   protected SqlNode visitTableRowFormat(ASTNode node, ParseContext ctx) {
+
     return visitChildren(node, ctx).get(0);
   }
 
@@ -1909,6 +1932,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     SqlCharStringLiteral comment;
     SqlNodeList partitionByList;
     SqlNodeList clusterByList;
+    SqlNode bucketNum;
     SqlNodeList sortedByList;
     SqlNode rowFormat;
     SqlIdentifier storedAs;

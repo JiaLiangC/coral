@@ -373,7 +373,7 @@ public abstract class AbstractASTVisitor<R, C> {
       case HiveParser.TOK_TABLEPARTCOLS:
         return visitDefault(node, ctx);
       case HiveParser.TOK_ALTERTABLE_BUCKETS:
-        return visitDefault(node, ctx);
+        return visitAlterTableBuckets(node, ctx);
       case HiveParser.TOK_TABLESKEWED:
         return visitDefault(node, ctx);
       case HiveParser.TOK_SERDE:
@@ -570,6 +570,8 @@ public abstract class AbstractASTVisitor<R, C> {
   }
 
 
+
+  protected R visitAlterTableBuckets(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
 
 
   protected R visitUnique(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}

@@ -14,7 +14,8 @@ import org.antlr.runtime.TokenRewriteStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hive.conf.HiveConf;
-
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.ql.Context;
 
 public class CoralParseDriver extends ParseDriver {
 
@@ -33,7 +34,7 @@ public class CoralParseDriver extends ParseDriver {
     this.useSQL11ReservedKeywordsForIdentifier = false;
   }
 
-  @Override
+
   public ASTNode parse(String command) throws ParseException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("Parsing command: " + command);
@@ -116,11 +117,6 @@ public class CoralParseDriver extends ParseDriver {
 
     public ArrayList<ParseError> getErrors() {
       return errors;
-    }
-
-    @Override
-    protected boolean allowQuotedId() {
-      return true;
     }
   }
 }

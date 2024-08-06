@@ -13,8 +13,8 @@ import com.google.common.collect.ImmutableList;
 import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-
 public class SqlSkewedByOnClause extends SqlCall {
+  private static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("SKEWED BY ON", SqlKind.OTHER);
 
   private final SqlNodeList valuesList;
 
@@ -47,16 +47,5 @@ public class SqlSkewedByOnClause extends SqlCall {
     }
     writer.endList(frame);
   }
-
-  private static final SqlOperator OPERATOR = new SqlSpecialOperator("SKEWED BY ON", SqlKind.OTHER);
-
-  // Convenience method to get the number of value lists
-  public int getValueListCount() {
-    return valuesList.size();
-  }
-
-  // Convenience method to get a specific value list
-  public SqlNode getValueList(int index) {
-    return valuesList.get(index);
-  }
 }
+

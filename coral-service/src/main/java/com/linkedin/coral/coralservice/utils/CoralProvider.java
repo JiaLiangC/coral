@@ -72,9 +72,9 @@ public class CoralProvider {
     while (true) {
       try {
         CommandProcessorResponse result = driver.run(sql);
-        if (result.getException() != null) {
-          throw new RuntimeException("Execution failed for: " + sql, result.getException());
-        }
+//        if (result.getException() != null) {
+//          throw new RuntimeException("Execution failed for: " + sql, result.getException());
+//        }
       } catch (CommandNeedRetryException e) {
         continue;
       }

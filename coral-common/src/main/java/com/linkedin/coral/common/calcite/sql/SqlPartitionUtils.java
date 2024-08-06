@@ -40,7 +40,7 @@ public class SqlPartitionUtils {
       SqlProperty sqlProperty = (SqlProperty) node;
       Comparable<?> comparable = SqlLiteral.value(sqlProperty.getValue());
       String value = comparable instanceof NlsString ? ((NlsString) comparable).getValue() : comparable.toString();
-      ret.put(sqlProperty.getKey().getSimple(), value);
+      ret.put(sqlProperty.getKey().toValue(), value);
     }
     return ret;
   }

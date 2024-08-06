@@ -21,9 +21,9 @@ public class SqlRowFormatDelimited extends SqlRowFormat {
   private final SqlCharStringLiteral nullDefinedAs;
 
   public SqlRowFormatDelimited(SqlParserPos pos, SqlCharStringLiteral fieldsTerminatedBy,
-      SqlCharStringLiteral escapedBy, SqlCharStringLiteral collectionItemsTerminatedBy,
-      SqlCharStringLiteral mapKeysTerminatedBy, SqlCharStringLiteral linesTerminatedBy,
-      SqlCharStringLiteral nullDefinedAs) {
+                               SqlCharStringLiteral escapedBy, SqlCharStringLiteral collectionItemsTerminatedBy,
+                               SqlCharStringLiteral mapKeysTerminatedBy, SqlCharStringLiteral linesTerminatedBy,
+                               SqlCharStringLiteral nullDefinedAs) {
     super(pos);
     this.fieldsTerminatedBy = fieldsTerminatedBy;
     this.escapedBy = escapedBy;
@@ -57,16 +57,6 @@ public class SqlRowFormatDelimited extends SqlRowFormat {
     return nullDefinedAs;
   }
 
-  @Override
-  public SqlOperator getOperator() {
-    return new SqlSpecialOperator("ROW FORMAT DELIMITED", SqlKind.OTHER);
-  }
-
-  @Override
-  public List<SqlNode> getOperandList() {
-    return ImmutableNullableList.of(fieldsTerminatedBy, escapedBy, collectionItemsTerminatedBy, mapKeysTerminatedBy,
-        linesTerminatedBy, nullDefinedAs);
-  }
 
   @Override
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
@@ -113,5 +103,14 @@ public class SqlRowFormatDelimited extends SqlRowFormat {
   public SqlRowFormatType getRowFormatType() {
     return SqlRowFormatType.DELIMITED;
   }
+  @Override
+  public SqlOperator getOperator() {
+    return new SqlSpecialOperator("ROW FORMAT DELIMITED", SqlKind.OTHER);
+  }
 
+  @Override
+  public List<SqlNode> getOperandList() {
+    return ImmutableNullableList.of(fieldsTerminatedBy, escapedBy, collectionItemsTerminatedBy, mapKeysTerminatedBy,
+            linesTerminatedBy, nullDefinedAs);
+  }
 }

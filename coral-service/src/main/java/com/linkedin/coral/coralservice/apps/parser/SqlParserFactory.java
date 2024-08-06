@@ -7,7 +7,7 @@ import org.apache.calcite.sql.dialect.HiveSqlDialect;
 
 public class SqlParserFactory {
     public static SqlParser createParser(String dialectName, PluginRegistry registry) {
-        SqlDialect dialect = registry.getSqlDialect(dialectName);
+//        SqlDialect dialect = registry.getSqlDialect(dialectName);
         return new HiveSqlParser(HiveSqlDialect.DEFAULT);
     }
 }

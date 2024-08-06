@@ -25,12 +25,46 @@
         <dependency>
             <groupId>org.antlr</groupId>
             <artifactId>antlr-runtime</artifactId>
-            <version>3.4</version>
+            <version>3.5.2</version>
         </dependency>
         <dependency>
             <groupId>org.antlr</groupId>
             <artifactId>antlr</artifactId>
-            <version>3.4</version>
+            <version>3.5.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.12.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-common</artifactId>
+            <version>4.0.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.eclipse.jetty.aggregate</groupId>
+                    <artifactId>jetty-all</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.antlr</groupId>
+            <artifactId>stringtemplate</artifactId>
+            <version>3.2.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+            <version>3.3.6</version>
         </dependency>
 
         <dependency>
@@ -43,9 +77,11 @@
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-exec</artifactId>
             <version>1.2.2</version>
-            <classifier>core</classifier>
-            <scope>test</scope>
             <exclusions>
+                <exclusion>
+                    <artifactId>log4j-slf4j-impl</artifactId>
+                    <groupId>org.apache.logging.log4j</groupId>
+                </exclusion>
                 <exclusion>
                     <artifactId>avro-tools</artifactId>
                     <groupId>org.apache.avro</groupId>
@@ -84,25 +120,59 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>org.immutables</groupId>
+            <artifactId>value</artifactId>
+            <version>2.9.2</version> <!-- 使用最新的稳定版本 -->
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
             <plugin>
                 <groupId>org.antlr</groupId>
                 <artifactId>antlr3-maven-plugin</artifactId>
-                <version>3.4</version>
+<!--                <version>3.5.2</version>-->
                 <executions>
                     <execution>
                         <goals>
                             <goal>antlr</goal>
                         </goals>
+<!--                        <configuration>-->
+<!--                            <sourceDirectory>${basedir}/src/main/antlr/roots</sourceDirectory>-->
+<!--                            <libDirectory>${project.basedir}/src/main/antlr/imports</libDirectory>-->
+<!--                        </configuration>-->
+
                         <configuration>
                             <sourceDirectory>${basedir}/src/main/antlr/roots</sourceDirectory>
-                            <libDirectory>${project.basedir}/src/main/antlr/imports</libDirectory>
+                            <includes>
+                                <include>**/HiveLexer.g</include>
+                                <include>**/HiveLexerStandard.g</include>
+                                <include>**/HiveParser.g</include>
+                                <include>**/HintParser.g</include>
+                            </includes>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.codehaus.mojo</groupId>-->
+<!--                <artifactId>build-helper-maven-plugin</artifactId>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <id>add-source</id>-->
+<!--                        <phase>generate-sources</phase>-->
+<!--                        <goals>-->
+<!--                            <goal>add-source</goal>-->
+<!--                        </goals>-->
+<!--                        <configuration>-->
+<!--                            <sources>-->
+<!--                                <source>${project.build.directory}/generated-sources/antlr3</source>-->
+<!--                            </sources>-->
+<!--                        </configuration>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
         </plugins>
     </build>
 </project>

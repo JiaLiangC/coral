@@ -77,12 +77,12 @@ public class SqlColumnConstraint extends SqlCall {
         writer.keyword(getConstraintType().name());
 
         if (defaultValue != null) {
-            writer.keyword("DEFAULT");
+//            writer.keyword("DEFAULT");
             defaultValue.unparse(writer, leftPrec, rightPrec);
         }
 
         if (checkExpression != null) {
-            writer.keyword("CHECK");
+//            writer.keyword("CHECK");
             checkExpression.unparse(writer, leftPrec, rightPrec);
         }
 
