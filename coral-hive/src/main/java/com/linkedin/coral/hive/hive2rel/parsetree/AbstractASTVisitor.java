@@ -382,11 +382,11 @@ public abstract class AbstractASTVisitor<R, C> {
         return visitSerdeProps(node, ctx);
 
       case HiveParser.TOK_TABLEPROPERTIES:
-        return visitDefault(node, ctx);
+        return visitTableProperties(node, ctx);
       case HiveParser.TOK_TABLEPROPLIST:
-        return visitDefault(node, ctx);
+        return visitTablePropList(node, ctx);
       case HiveParser.TOK_TABLEPROPERTY:
-        return visitDefault(node, ctx);
+        return visitTableProperty(node, ctx);
 
       case HiveParser.TOK_TABLEROWFORMATCOLLITEMS:
         return visitDefault(node, ctx);
@@ -609,6 +609,17 @@ public abstract class AbstractASTVisitor<R, C> {
     return null;
   }
 
+  protected R visitTableProperty(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+  protected R visitTablePropList(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+  protected R visitTableProperties(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
   protected R visitSerdeProps(ASTNode node, C ctx) {
     if (node.getChildren() != null) {
       return visitChildren(node, ctx).get(0);
@@ -631,6 +642,7 @@ public abstract class AbstractASTVisitor<R, C> {
   }
 
   protected R visitTableSerializer(ASTNode node, C ctx) {
+
     if (node.getChildren() != null) {
       return visitChildren(node, ctx).get(0);
     }

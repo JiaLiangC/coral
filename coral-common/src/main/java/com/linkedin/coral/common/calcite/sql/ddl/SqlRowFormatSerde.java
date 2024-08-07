@@ -7,16 +7,33 @@ package com.linkedin.coral.common.calcite.sql.ddl;
 
 import java.util.List;
 
+import com.linkedin.coral.common.calcite.sql.ddl.constraint.SqlColumnConstraint;
 import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.util.ImmutableNullableList;
+
+import javax.annotation.Nullable;
 
 
 public class SqlRowFormatSerde extends SqlRowFormat {
-  private final SqlIdentifier serdeName;
+  private final SqlCharStringLiteral serdeName;
   private final SqlNodeList serdeProperties;
 
-  public SqlRowFormatSerde(SqlParserPos pos, SqlIdentifier serdeName, SqlNodeList serdeProperties) {
+  public static final SqlSpecialOperator OPERATOR =
+          new SqlSpecialOperator("ROW FORMAT SERDE", SqlKind.OTHER) {
+            @Override
+            public SqlCall createCall(@Nullable SqlLiteral functionQualifier, SqlParserPos pos, @Nullable SqlNode... operands) {
+                assert operands != null;
+                if (operands.length < 2) {
+                throw new IllegalArgumentException("Invalid number of operands");
+              }
+              SqlCharStringLiteral serdeName = (SqlCharStringLiteral) operands[0];
+              SqlNodeList serdeProperties = (SqlNodeList)operands[1];
+             return new SqlRowFormatSerde(pos, serdeName, serdeProperties);
+            }
+          };
+  public SqlRowFormatSerde(SqlParserPos pos, SqlCharStringLiteral serdeName, SqlNodeList serdeProperties) {
     super(pos);
     this.serdeName = serdeName;
     this.serdeProperties = serdeProperties;
@@ -24,7 +41,7 @@ public class SqlRowFormatSerde extends SqlRowFormat {
 
   @Override
   public SqlOperator getOperator() {
-    return new SqlSpecialOperator("ROW FORMAT SERDE", SqlKind.OTHER);
+    return OPERATOR;
   }
 
   @Override

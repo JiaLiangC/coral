@@ -11,6 +11,8 @@ import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
+import javax.annotation.Nullable;
+
 
 public class SqlRowFormatDelimited extends SqlRowFormat {
   private final SqlCharStringLiteral fieldsTerminatedBy;
@@ -19,6 +21,27 @@ public class SqlRowFormatDelimited extends SqlRowFormat {
   private final SqlCharStringLiteral mapKeysTerminatedBy;
   private final SqlCharStringLiteral linesTerminatedBy;
   private final SqlCharStringLiteral nullDefinedAs;
+
+
+  public static final SqlSpecialOperator OPERATOR =
+          new SqlSpecialOperator("ROW FORMAT DELIMITED", SqlKind.OTHER) {
+            @Override
+            public SqlCall createCall(@Nullable SqlLiteral functionQualifier, SqlParserPos pos, @Nullable SqlNode... operands) {
+              assert operands != null;
+              if (operands.length < 6) {
+                throw new IllegalArgumentException("Invalid number of operands");
+              }
+
+              SqlCharStringLiteral fieldsTerminatedBy = (SqlCharStringLiteral) operands[0];
+              SqlCharStringLiteral escapedBy = (SqlCharStringLiteral) operands[1];
+              SqlCharStringLiteral collectionItemsTerminatedBy = (SqlCharStringLiteral) operands[2];
+              SqlCharStringLiteral mapKeysTerminatedBy = (SqlCharStringLiteral)operands[3];
+              SqlCharStringLiteral linesTerminatedBy = (SqlCharStringLiteral) operands[4];
+              SqlCharStringLiteral nullDefinedAs = (SqlCharStringLiteral)operands[5];
+              return new SqlRowFormatDelimited(pos, fieldsTerminatedBy, escapedBy,collectionItemsTerminatedBy,mapKeysTerminatedBy,linesTerminatedBy,nullDefinedAs);
+            }
+          };
+
 
   public SqlRowFormatDelimited(SqlParserPos pos, SqlCharStringLiteral fieldsTerminatedBy,
                                SqlCharStringLiteral escapedBy, SqlCharStringLiteral collectionItemsTerminatedBy,
@@ -32,6 +55,18 @@ public class SqlRowFormatDelimited extends SqlRowFormat {
     this.linesTerminatedBy = linesTerminatedBy;
     this.nullDefinedAs = nullDefinedAs;
   }
+
+  @Override
+  public SqlOperator getOperator() {
+    return OPERATOR;
+  }
+
+  @Override
+  public List<SqlNode> getOperandList() {
+    return ImmutableNullableList.of(fieldsTerminatedBy, escapedBy, collectionItemsTerminatedBy, mapKeysTerminatedBy,
+            linesTerminatedBy, nullDefinedAs);
+  }
+
 
   public SqlCharStringLiteral getFieldsTerminatedBy() {
     return fieldsTerminatedBy;
@@ -103,14 +138,5 @@ public class SqlRowFormatDelimited extends SqlRowFormat {
   public SqlRowFormatType getRowFormatType() {
     return SqlRowFormatType.DELIMITED;
   }
-  @Override
-  public SqlOperator getOperator() {
-    return new SqlSpecialOperator("ROW FORMAT DELIMITED", SqlKind.OTHER);
-  }
 
-  @Override
-  public List<SqlNode> getOperandList() {
-    return ImmutableNullableList.of(fieldsTerminatedBy, escapedBy, collectionItemsTerminatedBy, mapKeysTerminatedBy,
-            linesTerminatedBy, nullDefinedAs);
-  }
 }
