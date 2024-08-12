@@ -340,6 +340,24 @@ public abstract class AbstractASTVisitor<R, C> {
 //      case HiveParser.TOK_ANONYMOUS:
 //        return visitDefault(node, ctx);
 
+
+
+      case HiveParser.TOK_CREATEDATABASE:
+        return visitCreateDatabase(node, ctx);
+
+      case HiveParser.TOK_DATABASECOMMENT:
+        return visitDatabaseComment(node, ctx);
+      case HiveParser.TOK_DATABASELOCATION:
+        return visitDatabaseLocation(node, ctx);
+      case HiveParser.TOK_DATABASEPROPERTIES:
+        return visitDatabaseProperties(node, ctx);
+      case HiveParser.TOK_DATABASE_MANAGEDLOCATION:
+        return visitDatabaseManagedLocation(node, ctx);
+      case HiveParser.TOK_DATACONNECTOR:
+        return visitDataConnector(node, ctx);
+
+
+
       /*
       *  CREATE TABLE DDL
       * todo add unit test
@@ -690,6 +708,28 @@ public abstract class AbstractASTVisitor<R, C> {
       return visitChildren(node, ctx).get(0);
     }
     return null;
+  }
+
+
+  protected R visitCreateDatabase(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+  protected R visitDatabaseComment(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+  protected R visitDatabaseLocation(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+  protected R visitDatabaseProperties(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+  protected R visitDatabaseManagedLocation(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+
+  protected R visitDataConnector(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
   }
 
   protected R visitCreateTable(ASTNode node, C ctx) {

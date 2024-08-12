@@ -14,10 +14,7 @@ import javax.annotation.Nullable;
 
 import com.linkedin.coral.common.calcite.CalciteUtil;
 import com.linkedin.coral.common.calcite.sql.*;
-import com.linkedin.coral.common.calcite.sql.ddl.SqlCreateTable;
-import com.linkedin.coral.common.calcite.sql.ddl.SqlRowFormatDelimited;
-import com.linkedin.coral.common.calcite.sql.ddl.SqlRowFormatSerde;
-import com.linkedin.coral.common.calcite.sql.ddl.SqlTableColumn;
+import com.linkedin.coral.common.calcite.sql.ddl.*;
 import com.linkedin.coral.common.calcite.sql.ddl.constraint.SqlColumnConstraint;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.*;
@@ -1220,6 +1217,74 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
   @Override
   protected SqlNode visitTableTokOrCol(ASTNode node, ParseContext ctx) {
     return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitCreateDatabase(ASTNode node, ParseContext ctx) {
+    SqlIdentifier databaseName = null;
+    boolean ifNotExists = false;
+    SqlNode comment = null;
+    SqlNode location = null;
+    SqlNode managedLocation = null;
+    SqlNodeList properties = null;
+    boolean isSchema = false;
+    boolean isRemote = false;
+    SqlIdentifier connector = null;
+
+
+    for (Node child : node.getChildren()) {
+      ASTNode ast = (ASTNode) child;
+      switch (ast.getType()) {
+        case HiveParser.Identifier:
+          databaseName = new SqlIdentifier(ast.getText(), ZERO);
+          break;
+        case HiveParser.TOK_IFNOTEXISTS:
+          ifNotExists = true;
+          break;
+        case HiveParser.TOK_DATABASECOMMENT:
+          comment = visit((ASTNode) ast.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_DATABASEPROPERTIES:
+          properties = (SqlNodeList) visit(ast, ctx);
+          break;
+        case HiveParser.TOK_DATABASELOCATION:
+          location = visit((ASTNode) ast.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_DATABASE_MANAGEDLOCATION:
+          managedLocation = visit((ASTNode) ast.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_DATACONNECTOR:
+          connector = new SqlIdentifier(ast.getChild(0).getText(), ZERO);
+          isRemote = true;
+          break;
+      }
+    }
+//    if (node.getToken().getText().equalsIgnoreCase("CREATE SCHEMA")) {
+//      isSchema = true;
+//    }
+    return new SqlCreateDatabase(
+            ZERO,
+            databaseName,
+            ifNotExists,
+            comment,
+            location,
+            managedLocation,
+            properties,
+            isSchema,
+            isRemote,
+            connector
+    );
+  }
+
+  @Override
+  protected SqlNode visitDatabaseProperties(ASTNode node, ParseContext ctx) {
+    List<SqlNode> propertyList = new ArrayList<>();
+    for (Node child : node.getChildren()) {
+      if (((ASTNode) child).getType() == HiveParser.TOK_DBPROPLIST) {
+        propertyList.addAll(visitChildren((ASTNode) child, ctx));
+      }
+    }
+    return new SqlNodeList(propertyList, ZERO);
   }
 
 

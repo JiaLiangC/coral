@@ -91,18 +91,24 @@ public class SqlTransformationApplication {
         String sql1_ddl = " CREATE EXTERNAL TABLE complex_example ( id INT COMMENT 'Unique identifier', name STRING, age INT CHECK (age >= 18) ENABLE, email STRING UNIQUE DISABLE NOVALIDATE, preferences MAP<STRING, STRING>, tags ARRAY<STRING>, address STRUCT<street:STRING, city:STRING, zip:INT>, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP() ) COMMENT 'A complex table example' PARTITIONED BY (year INT, month INT) CLUSTERED BY (id) SORTED BY (name ASC) INTO 16 BUCKETS ROW FORMAT DELIMITED FIELDS TERMINATED BY '\\t' COLLECTION ITEMS TERMINATED BY ',' MAP KEYS TERMINATED BY ':' STORED AS ORC LOCATION '/user/hive/complex_example' TBLPROPERTIES ('creator'='Data Team', 'created_at'='2023-05-01')";
         String sql13_ddl = "CREATE TABLE basic_table (id INT, name STRING)";
         String sql12_ddl = "CREATE TABLE apachelog (host STRING, identity STRING, user1 STRING, time1 STRING,request STRING,status STRING,size STRING,referer STRING, agent STRING) ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.RegexSerDe' WITH SERDEPROPERTIES ('input.regex' = '([^]*) ([^]*) ([^]*) (-|\\[^\\]*\\]) ([^ \"]*|\"[^\"]*\") (-|[0-9]*) (-|[0-9]*)(?: ([^ \"]*|\".*\") ([^ \"]*|\".*\"))?')STORED AS TEXTFILE";
+
+        String createDb1 = "CREATE DATABASE IF NOT EXISTS finance_db COMMENT 'Database for financial data analysis' LOCATION '/user/hive/warehouse/finance.db' MANAGEDLOCATION '/user/hive/warehouse/finance_managed.db' WITH DBPROPERTIES ('creator' = 'John Doe','department' = 'Finance','created_on' = '2024-08-12','version' = '1.0')";
+        String createDb =  "CREATE REMOTE DATABASE IF NOT EXISTS external_sales COMMENT 'Remote database for sales data from external systems' USING mysql_connector WITH DBPROPERTIES ( 'connector.host' = 'remote-mysql-server.example.com', 'connector.port' = '3306', 'connector.user' = 'hive_user', 'connector.password' = 'secret_password', 'connector.database' = 'sales_data' )";
+        String createDb2 = "CREATE DATABASE analytics_db LOCATION '/data/analytics' WITH DBPROPERTIES ( 'purpose' = 'Data analysis and reporting', 'team' = 'Data Science' )";
+
+
         ParseDriver pd = new CoralParseDriver(false);
-        ASTNode root = pd.parse(sql1_ddl);
+        ASTNode root = pd.parse(createDb);
         HiveAstPrinter.printAstTree(root);
 
         HiveSqlParser parser = new HiveSqlParser(HiveSqlDialect.DEFAULT);
-        SqlNode rootnode = parser.parse(sql1_ddl);
+        SqlNode rootnode = parser.parse(createDb);
         CalciteSqlNodeTreePrinter  printer = new CalciteSqlNodeTreePrinter();
         String detailedOutput = printer.print(rootnode);
         System.out.println(detailedOutput);
 
         SqlTransformationApplication app = new SqlTransformationApplication.Builder().build();
-        String result = app.transformSql(sql1_ddl,"Hive","Spark");
+        String result = app.transformSql(createDb,"Hive","Spark");
         System.out.println(result);
 
 
