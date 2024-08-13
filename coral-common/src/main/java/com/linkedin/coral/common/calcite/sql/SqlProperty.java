@@ -24,16 +24,16 @@ public class SqlProperty extends SqlCall {
   /** Use this operator only if you don't have a better one. */
   protected static final SqlOperator OPERATOR = new SqlSpecialOperator("Property", SqlKind.OTHER);
 
-  private final SqlCharStringLiteral key;
+  private final SqlNode key;
   private final SqlNode value;
 
-  public SqlProperty(SqlCharStringLiteral key, SqlNode value, SqlParserPos pos) {
+  public SqlProperty(SqlNode key, SqlNode value, SqlParserPos pos) {
     super(pos);
     this.key = requireNonNull(key, "Property key is missing");
     this.value = requireNonNull(value, "Property value is missing");
   }
 
-  public SqlCharStringLiteral getKey() {
+  public SqlNode getKey() {
     return key;
   }
 

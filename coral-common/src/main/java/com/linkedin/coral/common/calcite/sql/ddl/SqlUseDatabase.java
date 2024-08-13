@@ -8,20 +8,29 @@ package com.linkedin.coral.common.calcite.sql.ddl;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.calcite.sql.SqlWriter;
+import com.google.common.collect.ImmutableList;
+import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParserPos;
+
+import javax.annotation.Nullable;
 
 
 /** USE [catalog.]database sql call. */
 public class SqlUseDatabase extends SqlCall {
 
-  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("USE DATABASE", SqlKind.OTHER_DDL);
+  public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("USE DATABASE", SqlKind.OTHER_DDL){
+    @Override
+    public SqlCall createCall(@Nullable final SqlLiteral functionQualifier,
+                              final SqlParserPos pos,
+                              final @Nullable SqlNode... operands) {
+      if (operands.length < 1) {
+        throw new IllegalArgumentException("Invalid number of operands for CREATE TABLE");
+      }
+      SqlIdentifier databaseName = (SqlIdentifier) operands[0];
+
+      return new SqlUseDatabase(pos, databaseName);
+    }
+  };
   private final SqlIdentifier databaseName;
 
   public SqlUseDatabase(SqlParserPos pos, SqlIdentifier databaseName) {
@@ -36,7 +45,7 @@ public class SqlUseDatabase extends SqlCall {
 
   @Override
   public List<SqlNode> getOperandList() {
-    return Collections.singletonList(databaseName);
+    return ImmutableList.of(databaseName);
   }
 
   public SqlIdentifier getDatabaseName() {

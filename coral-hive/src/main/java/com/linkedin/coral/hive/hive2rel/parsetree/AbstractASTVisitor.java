@@ -357,6 +357,12 @@ public abstract class AbstractASTVisitor<R, C> {
         return visitDataConnector(node, ctx);
 
 
+      case HiveParser.TOK_SWITCHDATABASE:
+        return visitSwitchDatabase(node, ctx);
+
+
+
+
 
       /*
       *  CREATE TABLE DDL
@@ -390,8 +396,6 @@ public abstract class AbstractASTVisitor<R, C> {
         return visitDefault(node, ctx);
       case HiveParser.TOK_TABLEPARTCOLS:
         return visitDefault(node, ctx);
-      case HiveParser.TOK_ALTERTABLE_BUCKETS:
-        return visitAlterTableBuckets(node, ctx);
       case HiveParser.TOK_TABLESKEWED:
         return visitDefault(node, ctx);
       case HiveParser.TOK_SERDE:
@@ -452,7 +456,7 @@ public abstract class AbstractASTVisitor<R, C> {
       case HiveParser.TOK_PARTSPEC:
         return visitDefault(node, ctx);
       case HiveParser.TOK_PARTVAL:
-        return visitDefault(node, ctx);
+        return visitPartVal(node, ctx);
       case HiveParser.TOK_PERCENT:
         return visitDefault(node, ctx);
       case HiveParser.TOK_PTBLFUNCTION:
@@ -511,6 +515,96 @@ public abstract class AbstractASTVisitor<R, C> {
         return visitDefaultValue(node, ctx);
       case HiveParser.TOK_CHECK_CONSTRAINT:
         return visitCheckConstraint(node, ctx);
+
+
+      /*
+      * ALTER DDL
+      *
+      * */
+      case HiveParser.TOK_ALTERTABLE:
+        return visitAlterTable(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_COMPACT:
+        return visitAlterTableCompact(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_PARTCOLTYPE:
+        return visitAlterTablePartColType(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_RENAME:
+        return visitAlterTableRename(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_ADDCOLS:
+        return visitAlterTableAddCols(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_REPLACECOLS:
+        return visitAlterTableReplaceCols(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_ADDCONSTRAINT:
+        return visitAlterTableAddConstraint(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_UPDATECOLUMNS:
+        return visitAlterTableUpdateColumns(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_DROPCONSTRAINT:
+        return visitAlterTableDropConstraint(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_RENAMECOL:
+        return visitAlterTableRenameCol(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_UPDATECOLSTATS:
+        return visitAlterTableUpdateColStats(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_UPDATESTATS:
+        return visitAlterTableUpdateStats(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_CHANGECOL_AFTER_POSITION:
+        return visitAlterTableChangeColAfterPosition(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_ADDPARTS:
+        return visitAlterTableAddParts(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_TOUCH:
+        return visitAlterTableTouch(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_ARCHIVE:
+        return visitAlterTableArchive(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_UNARCHIVE:
+        return visitAlterTableUnarchive(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_DROPPARTS:
+        return visitAlterTableDropParts(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_PROPERTIES:
+        return visitAlterTableProperties(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_DROPPROPERTIES:
+        return visitAlterTableDropProperties(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_SERIALIZER:
+        return visitAlterTableSerializer(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_SETSERDEPROPERTIES:
+        return visitAlterTableSetSerdeProperties(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_UNSETSERDEPROPERTIES:
+        return visitAlterTableUnsetSerdeProperties(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_FILEFORMAT:
+        return visitAlterTableFileFormat(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_CLUSTER_SORT:
+        return visitAlterTableClusterSort(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_SKEWED_LOCATION:
+        return visitAlterTableSkewedLocation(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_LOCATION:
+        return visitAlterTableLocation(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_SKEWED:
+        return visitAlterTableSkewed(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_EXCHANGEPARTITION:
+        return visitAlterTableExchangePartition(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_RENAMEPART:
+        return visitAlterTableRenamePart(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_MERGEFILES:
+        return visitAlterTableMergeFiles(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_BUCKETS:
+        return visitAlterTableBuckets(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_OWNER:
+        return visitAlterTableOwner(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_SETPARTSPEC:
+        return visitAlterTableSetPartSpec(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_CONVERT:
+        return visitAlterTableConvert(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_EXECUTE:
+        return visitAlterTableExecute(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_DROP_BRANCH:
+        return visitAlterTableDropBranch(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_CREATE_BRANCH:
+        return visitAlterTableCreateBranch(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_DROP_TAG:
+        return visitAlterTableDropTag(node, ctx);
+      case HiveParser.TOK_ALTERTABLE_CREATE_TAG:
+        return visitAlterTableCreateTag(node, ctx);
+
+
+
+
 
 
 
@@ -589,13 +683,56 @@ public abstract class AbstractASTVisitor<R, C> {
 
 
 
-  protected R visitAlterTableBuckets(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
-
-
+  protected R visitPartVal(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
   protected R visitUnique(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
   protected R visitPrimaryKey(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
   protected R visitNotNull(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
   protected R visitDefaultValue(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+
+
+
+  protected R visitAlterTable(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+
+  protected R visitAlterTableCompact(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTablePartColType(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableRename(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableAddCols(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableReplaceCols(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableAddConstraint(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableUpdateColumns(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableDropConstraint(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableRenameCol(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableUpdateColStats(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableUpdateStats(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableChangeColAfterPosition(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableAddParts(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableTouch(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableArchive(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableUnarchive(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableDropParts(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableProperties(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableDropProperties(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableSerializer(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableSetSerdeProperties(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableUnsetSerdeProperties(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableFileFormat(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableClusterSort(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableSkewedLocation(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableLocation(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableSkewed(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableExchangePartition(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableRenamePart(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableMergeFiles(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableBuckets(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableOwner(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableSetPartSpec(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableConvert(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableExecute(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableDropBranch(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableCreateBranch(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableDropTag(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+  protected R visitAlterTableCreateTag(ASTNode node, C ctx) {return visitChildren(node, ctx).get(0);}
+
 
   protected R visitDisable(ASTNode node, C ctx) {
     return visitChildren(node, ctx).get(0);
@@ -731,6 +868,11 @@ public abstract class AbstractASTVisitor<R, C> {
   protected R visitDataConnector(ASTNode node, C ctx) {
     return visitChildren(node, ctx).get(0);
   }
+
+  protected R visitSwitchDatabase(ASTNode node, C ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
 
   protected R visitCreateTable(ASTNode node, C ctx) {
     return visitChildren(node, ctx).get(0);

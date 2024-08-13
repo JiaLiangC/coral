@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
 import com.linkedin.coral.common.calcite.CalciteUtil;
 import com.linkedin.coral.common.calcite.sql.*;
 import com.linkedin.coral.common.calcite.sql.ddl.*;
+import com.linkedin.coral.common.calcite.sql.ddl.SqlAlterTable.AlterTableOperation;
 import com.linkedin.coral.common.calcite.sql.ddl.constraint.SqlColumnConstraint;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.*;
@@ -23,6 +24,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.hadoop.hive.metastore.api.Table;
+
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -45,7 +47,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.lang.String.format;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.*;
 import static org.apache.calcite.sql.parser.SqlParserPos.ZERO;
-import com.linkedin.coral.common.calcite.sql.ddl.constraint.SqlTableConstraint;
 
 
 //这个类主要的作用就是把hive 的ast 转换为 calcite 的sqlnode
@@ -1289,6 +1290,25 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
 
 
   @Override
+  protected SqlNode visitSwitchDatabase(ASTNode node, ParseContext ctx) {
+    SqlIdentifier databaseName = null;
+
+    for (Node child : node.getChildren()) {
+      ASTNode ast = (ASTNode) child;
+      if (ast.getType() == HiveParser.Identifier) {
+        databaseName = new SqlIdentifier(ast.getText(), ZERO);
+        break;
+      }
+    }
+    // Handle the special case of "USE DEFAULT"
+    if (databaseName != null && databaseName.getSimple().equalsIgnoreCase("DEFAULT")) {
+      databaseName = new SqlIdentifier("DEFAULT", ZERO);
+    }
+
+    return new SqlUseDatabase(ZERO, databaseName);
+  }
+
+  @Override
   protected SqlNode visitCreateTable(ASTNode node, ParseContext ctx) {
     CreateTableOptions ctOptions = new CreateTableOptions();
     ctOptions.ifNotExists = false;
@@ -1353,7 +1373,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
             ctOptions.clusterByList,
             ctOptions.bucketNum,
             ctOptions.sortedByList,
-            null, // skewedByList
+            null, // skewedByList //todo
             ctOptions.storedAs,
             null, // storedBy
             ctOptions.location,
@@ -1476,93 +1496,6 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     List<SqlNode> sqlNodeList = visitChildren(node, ctx);
     return new SqlNodeList(sqlNodeList, ZERO);
   }
-
-  //@Override
-//  protected SqlNode visitColumn(ASTNode node, ParseContext ctx) {
-//    List<SqlNode> children = visitChildren(node, ctx);
-//
-//    SqlIdentifier columnName = (SqlIdentifier) children.get(0);
-//    SqlDataTypeSpec dataType = (SqlDataTypeSpec) children.get(1);
-//    SqlNode comment = null;
-//    SqlColumnConstraint constraint = null;
-//
-//    for (int i = 2; i < children.size(); i++) {
-//      SqlNode child = children.get(i);
-//      if (child instanceof SqlCharStringLiteral) {
-//        comment = child;
-//      } else if (child instanceof SqlColumnConstraint) {
-//        constraint = (SqlColumnConstraint) child;
-//      } else if (child instanceof SqlCall) {
-//        // Handle potential constraint definitions that are not yet wrapped in SqlColumnConstraint
-//        SqlCall call = (SqlCall) child;
-//        switch (call.getKind()) {
-//          case OTHER:
-//            if (call.getOperator().getName().equalsIgnoreCase("PRIMARY KEY")) {
-//              constraint = SqlColumnConstraint.createPrimaryKey(call.getParserPosition());
-//            } else if (call.getOperator().getName().equalsIgnoreCase("UNIQUE")) {
-//              constraint = SqlColumnConstraint.createUnique(call.getParserPosition());
-//            } else if (call.getOperator().getName().equalsIgnoreCase("NOT NULL")) {
-//              constraint = SqlColumnConstraint.createNotNull(call.getParserPosition());
-//            }
-//            break;
-//          case DEFAULT:
-//            constraint = SqlColumnConstraint.createDefault(call.operand(0), call.getParserPosition());
-//            break;
-//          case CHECK:
-//            constraint = SqlColumnConstraint.createCheck(call.operand(0), call.getParserPosition());
-//            break;
-//        }
-//      }
-//    }
-//
-//    // If we have both a constraint and additional options (ENABLE/DISABLE, VALIDATE/NOVALIDATE, RELY/NORELY),
-//    // we need to combine them
-//    if (constraint != null) {
-//      boolean isEnabled = constraint.isEnabled();
-//      boolean isValidated = constraint.isValidated();
-//      boolean isRely = constraint.isRely();
-//
-//      for (SqlNode child : children) {
-//        if (child instanceof SqlLiteral) {
-//          String value = ((SqlLiteral) child).toValue();
-//          switch (value) {
-//            case "ENABLE":
-//              isEnabled = true;
-//              break;
-//            case "DISABLE":
-//              isEnabled = false;
-//              break;
-//            case "VALIDATE":
-//              isValidated = true;
-//              break;
-//            case "NOVALIDATE":
-//              isValidated = false;
-//              break;
-//            case "RELY":
-//              isRely = true;
-//              break;
-//            case "NORELY":
-//              isRely = false;
-//              break;
-//          }
-//        }
-//      }
-//
-//      constraint = new SqlColumnConstraint(
-//              SqlLiteral.createSymbol(constraint.getConstraintType(), constraint.getParserPosition()),
-//              constraint.getDefaultValue(),
-//              constraint.getCheckExpression(),
-//              SqlLiteral.createBoolean(isEnabled, constraint.getParserPosition()),
-//              SqlLiteral.createBoolean(isValidated, constraint.getParserPosition()),
-//              SqlLiteral.createBoolean(isRely, constraint.getParserPosition()),
-//              constraint.getParserPosition()
-//      );
-//    }
-//
-//    return new SqlTableColumn.SqlRegularColumn(ZERO, columnName, comment, dataType, constraint);
-//  }
-
-
 
   @Override
   protected SqlNode visitColumn(ASTNode node, ParseContext ctx) {
@@ -1699,100 +1632,6 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
   }
 
 
-
-  //@Override
-//  protected SqlNode visitUnique(ASTNode node, ParseContext ctx) {
-//    List<SqlNode> children = visitChildren(node, ctx);
-//    boolean isDisabled = false;
-//    boolean isNoValidate = false;
-//    boolean isNoRely = true; // Default to NORELY as it's not explicitly specified
-//
-//    for (SqlNode child : children) {
-//      if (child instanceof SqlLiteral) {
-//        SqlLiteral literal = (SqlLiteral) child;
-//        if (literal.getValue().equals("DISABLE")) {
-//          isDisabled = true;
-//        } else if (literal.getValue().equals("NOVALIDATE")) {
-//          isNoValidate = true;
-//        }
-//      }
-//    }
-//
-//    return new SqlTableConstraint(
-//            null, // constraintName
-//            SqlLiteral.createSymbol(SqlTableConstraint.SqlConstraintType.UNIQUE, ZERO),
-//            null, // columns (will be set later in the parent node)
-//            null, // condition (not applicable for UNIQUE constraints)
-//            SqlLiteral.createBoolean(!isDisabled, ZERO), // enable
-//            SqlLiteral.createBoolean(!isNoValidate, ZERO), // validate
-//            SqlLiteral.createBoolean(!isNoRely, ZERO), // rely
-//            false, // isTableConstraint (this will be determined by the parent node)
-//            ZERO // pos
-//    );
-//  }
-
-  //@Override
-//  protected SqlNode visitColumnConstraint(ASTNode node, ParseContext ctx) {
-//    SqlColumnConstraint.SqlColumnConstraintType constraintType = null;
-//    SqlNode defaultValue = null;
-//    SqlNode checkExpression = null;
-//    boolean isEnabled = true;
-//    boolean isValidated = false;
-//    boolean isRely = false;
-//
-//    for (int i = 0; i < node.getChildCount(); i++) {
-//      ASTNode child = (ASTNode) node.getChild(i);
-//      switch (child.getType()) {
-//        case HiveParser.TOK_PRIMARY_KEY:
-//          constraintType = SqlColumnConstraint.SqlColumnConstraintType.PRIMARY_KEY;
-//          break;
-//        case HiveParser.TOK_UNIQUE:
-//          constraintType = SqlColumnConstraint.SqlColumnConstraintType.UNIQUE;
-//          break;
-//        case HiveParser.TOK_NOT_NULL:
-//          constraintType = SqlColumnConstraint.SqlColumnConstraintType.NOT_NULL;
-//          break;
-//        case HiveParser.TOK_DEFAULT_VALUE:
-//          constraintType = SqlColumnConstraint.SqlColumnConstraintType.DEFAULT;
-//          defaultValue = visit(child.getChild(0), ctx);
-//          break;
-//        case HiveParser.TOK_CHECK_CONSTRAINT:
-//          constraintType = SqlColumnConstraint.SqlColumnConstraintType.CHECK;
-//          checkExpression = visit(child.getChild(0), ctx);
-//          break;
-//        case HiveParser.TOK_ENABLE:
-//          isEnabled = true;
-//          break;
-//        case HiveParser.TOK_DISABLE:
-//          isEnabled = false;
-//          break;
-//        case HiveParser.TOK_VALIDATE:
-//          isValidated = true;
-//          break;
-//        case HiveParser.TOK_NOVALIDATE:
-//          isValidated = false;
-//          break;
-//        case HiveParser.TOK_RELY:
-//          isRely = true;
-//          break;
-//        case HiveParser.TOK_NORELY:
-//          isRely = false;
-//          break;
-//      }
-//    }
-//
-//    return new SqlColumnConstraint(
-//            SqlLiteral.createSymbol(constraintType, ZERO),
-//            defaultValue,
-//            checkExpression,
-//            SqlLiteral.createBoolean(isEnabled, ZERO),
-//            SqlLiteral.createBoolean(isValidated, ZERO),
-//            SqlLiteral.createBoolean(isRely, ZERO),
-//            ZERO
-//    );
-//  }
-
-
   @Override
   protected SqlNode visitDisable(ASTNode node, ParseContext ctx) {
     return SqlLiteral.createCharString("DISABLE", ZERO);
@@ -1863,44 +1702,6 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
   }
 
 
-  //@Override
-//  protected SqlNode visitCheckConstraint(ASTNode node, ParseContext ctx) {
-//    SqlNode condition = visit((ASTNode) node.getChildren().get(0), ctx);
-////    SqlNode condition = visit(getASTChild(node, 0), ctx);
-//    boolean isEnabled = false;
-//    boolean isValidated = false;
-//    boolean isRely = false;
-//
-//    for (int i = 1; i < node.getChildCount(); i++) {
-//      ASTNode child = (ASTNode) node.getChildren().get(i);
-//      switch (child.getType()) {
-//        case HiveParser.TOK_ENABLE:
-//          isEnabled = true;
-//          break;
-//        case HiveParser.TOK_VALIDATE:
-//          isValidated = true;
-//          break;
-//        case HiveParser.TOK_RELY:
-//          isRely = true;
-//          break;
-//      }
-//    }
-//
-//    return new SqlTableConstraint(
-//            null, // constraintName
-//            SqlLiteral.createSymbol(SqlTableConstraint.SqlConstraintType.CHECK, ZERO), // constraintType
-//            null, // columns (not applicable for CHECK constraints)
-//            condition,
-//            SqlLiteral.createBoolean(isEnabled, ZERO), // enable
-//            SqlLiteral.createBoolean(isValidated, ZERO), // validate
-//            SqlLiteral.createBoolean(isRely, ZERO), // rely
-//            false, // isTableConstraint (this is a column constraint)
-//            ZERO // pos
-//    );
-//  }
-
-
-
   private SqlIntervalQualifier fromASTIntervalTypeToSqlIntervalQualifier(ASTNode node) {
     switch (node.getType()) {
       case HiveParser.TOK_INTERVAL_DAY_LITERAL:
@@ -1921,6 +1722,477 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
         return new SqlIntervalQualifier(TimeUnit.YEAR, TimeUnit.MONTH, ZERO);
     }
     throw new UnhandledASTTokenException(node);
+  }
+
+
+  private SqlNode createSqlLiteral(ASTNode node) {
+    if (node.getType() == HiveParser.StringLiteral) {
+      return SqlLiteral.createCharString(node.getText().replaceAll("^'|'$", ""), SqlParserPos.ZERO);
+    } else {
+      return SqlLiteral.createExactNumeric(node.getText(), SqlParserPos.ZERO);
+    }
+  }
+
+  @Override
+  protected SqlNode visitPartVal(ASTNode node, ParseContext ctx) {
+    List<SqlNode> sqlNodeList = visitChildren(node, ctx);
+    SqlNode key = sqlNodeList.get(0);
+    SqlNode value = sqlNodeList.get(1);
+    return new SqlProperty(key, value,ZERO);
+  }
+/*
+*
+* Alter DDL
+*
+* */
+
+
+  @Override
+  protected SqlNode visitAlterTable(ASTNode node, ParseContext ctx) {
+    AlterTableOptions atOptions = new AlterTableOptions();
+    atOptions.tableName = (SqlIdentifier) visit((ASTNode) node.getChild(0), ctx);
+
+    for (int i = 1; i < node.getChildCount(); i++) {
+      ASTNode child = (ASTNode) node.getChild(i);
+      switch (child.getType()) {
+        case HiveParser.TOK_ALTERTABLE_RENAME:
+          atOptions.operation = AlterTableOperation.RENAME;
+          atOptions.newTableName = (SqlIdentifier) visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_PROPERTIES:
+          atOptions.operation = AlterTableOperation.SET_PROPERTIES;
+          atOptions.properties = (SqlNodeList) visit(child, ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_SERIALIZER:
+          atOptions.operation = AlterTableOperation.SET_SERDE;
+          atOptions.serdeName = visit((ASTNode) child.getChild(0), ctx);
+          if (child.getChildCount() > 1) {
+            atOptions.serdeProperties = (SqlNodeList) visit((ASTNode) child.getChild(1), ctx);
+          }
+          break;
+        case HiveParser.TOK_ALTERTABLE_UNSETSERDEPROPERTIES:
+          atOptions.operation = AlterTableOperation.UNSET_SERDE_PROPERTIES;
+          atOptions.serdeProperties = (SqlNodeList) visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_CLUSTER_SORT:
+          atOptions.operation = AlterTableOperation.CLUSTER_SORT;
+          ASTNode cluster_sort_child = (ASTNode) child.getChild(0);
+          if (cluster_sort_child.getType() == HiveParser.TOK_NOT_CLUSTERED) {
+            atOptions.not_clusterd = true;
+          } else if (cluster_sort_child.getType() == HiveParser.TOK_NOT_SORTED) {
+            atOptions.not_sorted = true;
+          } else {
+            for (Node bucket_child : cluster_sort_child.getChildren()) {
+              ASTNode ast = (ASTNode) bucket_child;
+              if (ast.getType() == HiveParser.TOK_TABCOLNAME && ((ASTNode) ast.getChildren().get(0)).getType() == HiveParser.Identifier) {
+                atOptions.clusterCols = new SqlNodeList(visitChildren(ast, ctx), ZERO);
+              } else if (ast.getType() == HiveParser.TOK_TABCOLNAME && ((ASTNode) ast.getChildren().get(0)).getType() == HiveParser.TOK_TABSORTCOLNAMEASC) {
+                atOptions.sortCols = new SqlNodeList(visitChildren(ast, ctx), ZERO);
+              } else if (ast.getType() == HiveParser.Number) {
+                atOptions.buckets = visit(ast, ctx);
+              }
+            }
+          }
+          break;
+
+        case HiveParser.TOK_ALTERTABLE_SKEWED:
+          atOptions.operation = AlterTableOperation.SKEWED;
+
+          if (child.getChildCount() == 1 && child.getChild(0).getType() ==HiveParser.TOK_STOREDASDIRS) {
+            atOptions.storedAsDirs = true;
+          } else if (child.getChildCount() == 0) {
+            atOptions.operation = AlterTableOperation.NOT_SKEWED;
+          } else if (child.getChild(0).getType() == HiveParser.TOK_TABLESKEWED) {
+            ASTNode skewedNode = (ASTNode) child.getChild(0);
+
+            // Process skewed columns
+            ASTNode colNameNode = (ASTNode) skewedNode.getChild(0);
+            List<SqlNode> skewedCols = new ArrayList<>();
+            for (int j = 0; j < colNameNode.getChildCount(); j++) {
+              skewedCols.add(new SqlIdentifier(colNameNode.getChild(j).getText(), SqlParserPos.ZERO));
+            }
+            atOptions.skewedCols = new SqlNodeList(skewedCols, SqlParserPos.ZERO);
+
+            // Process skewed values
+            ASTNode colValueNode = (ASTNode) skewedNode.getChild(1);
+            List<SqlNode> skewedValues = new ArrayList<>();
+
+            if (colValueNode.getType() == HiveParser.TOK_TABCOLVALUE) {
+              atOptions.skewedColsValuePair=false;
+              // Single column skewed values
+              for (int j = 0; j < colValueNode.getChildCount(); j++) {
+                ASTNode valueNode = (ASTNode) colValueNode.getChild(j);
+                SqlNode value = createSqlLiteral(valueNode);
+                skewedValues.add(value);
+              }
+            } else if (colValueNode.getType() == HiveParser.TOK_TABCOLVALUE_PAIR) {
+              atOptions.skewedColsValuePair=true;
+              // Multi-column skewed values
+              for (int j = 0; j < colValueNode.getChildCount(); j++) {
+                ASTNode tupleNode = (ASTNode) colValueNode.getChild(j).getChild(0);
+                List<SqlNode> tupleValues = new ArrayList<>();
+                for (int k = 0; k < tupleNode.getChildCount(); k++) {
+                  ASTNode valueNode = (ASTNode) tupleNode.getChild(k);
+                  SqlNode value = createSqlLiteral(valueNode);
+                  tupleValues.add(value);
+                }
+                skewedValues.add(new SqlValueTuple(SqlParserPos.ZERO, tupleValues.toArray(new SqlNode[0])));
+              }
+            }
+            atOptions.skewedValues = new SqlNodeList(skewedValues, SqlParserPos.ZERO);
+
+            // Check if STORED AS DIRECTORIES is present
+            atOptions.storedAsDirs = skewedNode.getChildCount() > 2;
+          }
+          break;
+        case HiveParser.TOK_ALTERTABLE_ADDPARTS:
+          atOptions.ifNotExists=false;
+          atOptions.operation = AlterTableOperation.ADD_PARTITION;
+          for (Node bucket_child : child.getChildren()) {
+            ASTNode ast = (ASTNode) bucket_child;
+            if (ast.getType() == HiveParser.TOK_PARTSPEC) {
+              atOptions.partitionSpec = new SqlNodeList(visitChildren(ast, ctx), ZERO);
+            } else if (ast.getType() == HiveParser.TOK_IFNOTEXISTS) {
+              atOptions.ifNotExists=true;
+            } else if (ast.getType() == HiveParser.TOK_PARTITIONLOCATION) {
+              atOptions.part_location=(SqlCharStringLiteral) visitChildren(ast, ctx).get(0);
+            }
+          }
+          atOptions.ifNotExists = child.getChild(0).getType() == HiveParser.TOK_IFNOTEXISTS;
+          break;
+        //todo
+        case HiveParser.TOK_ALTERTABLE_DROPPARTS:
+          atOptions.operation = AlterTableOperation.DROP_PARTITION;
+          atOptions.ifExists = child.getChild(0).getType() == HiveParser.TOK_IFEXISTS;
+          atOptions.partitionSpec = visit((ASTNode) child.getChild(atOptions.ifExists ? 1 : 0), ctx);
+          atOptions.purge = child.getChildCount() > (atOptions.ifExists ? 2 : 1) &&
+                  child.getChild(child.getChildCount() - 1).getType() == HiveParser.KW_PURGE;
+          break;
+        case HiveParser.TOK_ALTERTABLE_RENAMEPART:
+          atOptions.operation = AlterTableOperation.RENAME_PARTITION;
+          atOptions.oldPartitionSpec = visit((ASTNode) child.getChild(0), ctx);
+          atOptions.newPartitionSpec = visit((ASTNode) child.getChild(1), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_EXCHANGEPARTITION:
+          atOptions.operation = AlterTableOperation.EXCHANGE_PARTITION;
+          atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
+          atOptions.sourceTable = (SqlIdentifier) visit((ASTNode) child.getChild(1), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_ARCHIVE:
+          atOptions.operation = AlterTableOperation.ARCHIVE_PARTITION;
+          atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_UNARCHIVE:
+          atOptions.operation = AlterTableOperation.UNARCHIVE_PARTITION;
+          atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_FILEFORMAT:
+          atOptions.operation = AlterTableOperation.SET_FILE_FORMAT;
+          if (child.getChildCount() > 1) {
+            atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
+            atOptions.fileFormat = visit((ASTNode) child.getChild(1), ctx);
+          } else {
+            atOptions.fileFormat = visit((ASTNode) child.getChild(0), ctx);
+          }
+          break;
+        case HiveParser.TOK_ALTERTABLE_LOCATION:
+          atOptions.operation = AlterTableOperation.SET_LOCATION;
+          if (child.getChildCount() > 1) {
+            atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
+            atOptions.location = visit((ASTNode) child.getChild(1), ctx);
+          } else {
+            atOptions.location = visit((ASTNode) child.getChild(0), ctx);
+          }
+          break;
+        case HiveParser.TOK_ALTERTABLE_TOUCH:
+          atOptions.operation = AlterTableOperation.TOUCH;
+          if (child.getChildCount() > 0) {
+            atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
+          }
+          break;
+        case HiveParser.TOK_ALTERTABLE_COMPACT:
+          atOptions.operation = AlterTableOperation.COMPACT;
+          atOptions.compactionType = visit((ASTNode) child.getChild(0), ctx);
+          if (child.getChildCount() > 1) {
+            atOptions.compactionProps = (SqlNodeList) visit((ASTNode) child.getChild(1), ctx);
+          }
+          break;
+        case HiveParser.TOK_ALTERTABLE_MERGEFILES:
+          atOptions.operation = AlterTableOperation.MERGE_FILES;
+          if (child.getChildCount() > 0) {
+            atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
+          }
+          break;
+        case HiveParser.TOK_ALTERTABLE_UPDATECOLUMNS:
+          atOptions.operation = AlterTableOperation.UPDATE_COLUMNS;
+          if (child.getChildCount() > 0) {
+            atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
+          }
+          break;
+        //->^(TOK_ALTERTABLE_RENAMECOL $oldName $newName colType $comment? alterColumnConstraint? alterStatementChangeColPosition? restrictOrCascade?)
+        case HiveParser.TOK_ALTERTABLE_RENAMECOL:
+          atOptions.operation = AlterTableOperation.RENAME_COLUMN;
+          atOptions.oldColName = (SqlIdentifier) visit((ASTNode) child.getChild(0), ctx);
+          atOptions.newColName = (SqlIdentifier) visit((ASTNode) child.getChild(1), ctx);
+          atOptions.newColType = (SqlDataTypeSpec) visit((ASTNode) child.getChild(2), ctx);
+          if (child.getChildCount() > 3) {
+            atOptions.colComment = visit((ASTNode) child.getChild(3), ctx);
+          }
+          break;
+        case HiveParser.TOK_ALTERTABLE_CHANGECOL_AFTER_POSITION:
+          atOptions.afterCol = (SqlIdentifier) visit((ASTNode) child.getChild(0), ctx);
+        case HiveParser.TOK_ALTERTABLE_ADDCOLS:
+          atOptions.operation = AlterTableOperation.ADD_COLUMNS;
+          atOptions.newColumns = (SqlNodeList) visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_REPLACECOLS:
+          atOptions.operation = AlterTableOperation.REPLACE_COLUMNS;
+          atOptions.newColumns = (SqlNodeList) visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_ADDCONSTRAINT:
+          // This case is not directly supported in the given AlterTableOperation enum
+          // You might need to add a new operation type for this
+          break;
+        case HiveParser.TOK_ALTERTABLE_DROPCONSTRAINT:
+          atOptions.operation = AlterTableOperation.DROP_CONSTRAINT;
+          atOptions.constraintName = (SqlIdentifier) visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_UPDATECOLSTATS:
+          atOptions.operation = AlterTableOperation.UPDATE_COLUMN_STATS;
+          atOptions.columnStats = (SqlNodeList) visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_UPDATESTATS:
+          atOptions.operation = AlterTableOperation.UPDATE_TABLE_STATS;
+          atOptions.tableStats = (SqlNodeList) visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_DROPPROPERTIES:
+          atOptions.operation = AlterTableOperation.DROP_PROPERTIES;
+          atOptions.dropProperties = (SqlNodeList) visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_SKEWED_LOCATION:
+          atOptions.operation = AlterTableOperation.SET_SKEWED_LOCATION;
+          atOptions.skewedLocations = (SqlNodeList) visit((ASTNode) child.getChild(0), ctx);
+          break;
+        // KW_CLUSTERED KW_BY LPAREN bucketCols=columnNameList RPAREN (KW_SORTED KW_BY LPAREN sortCols=columnNameOrderList RPAREN)? KW_INTO num=Number KW_BUCKETS -> ^(TOK_ALTERTABLE_BUCKETS $bucketCols $sortCols? $num)
+        case HiveParser.TOK_ALTERTABLE_BUCKETS:
+          atOptions.operation = SqlAlterTable.AlterTableOperation.SET_BUCKETS;
+          atOptions.clusterCols = (SqlNodeList) visit((ASTNode) child.getChild(0), ctx);
+          atOptions.buckets = visit((ASTNode) child.getChild(1), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_OWNER:
+          atOptions.operation = AlterTableOperation.SET_OWNER;
+          atOptions.newOwner = (SqlIdentifier) visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_SETPARTSPEC:
+          atOptions.operation = AlterTableOperation.SET_PARTITION_SPEC;
+          atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_CONVERT:
+          atOptions.operation = AlterTableOperation.CONVERT_TABLE;
+          atOptions.convertType = visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_EXECUTE:
+          atOptions.operation = AlterTableOperation.EXECUTE;
+          atOptions.executeStatement = visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_DROP_BRANCH:
+          atOptions.operation = AlterTableOperation.DROP_BRANCH;
+          atOptions.branchName = (SqlIdentifier) visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_CREATE_BRANCH:
+          atOptions.operation = AlterTableOperation.CREATE_BRANCH;
+          atOptions.branchName = (SqlIdentifier) visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_DROP_TAG:
+          atOptions.operation = AlterTableOperation.DROP_TAG;
+          atOptions.tagName = (SqlIdentifier) visit((ASTNode) child.getChild(0), ctx);
+          break;
+        case HiveParser.TOK_ALTERTABLE_CREATE_TAG:
+          atOptions.operation = AlterTableOperation.CREATE_TAG;
+          atOptions.tagName = (SqlIdentifier) visit((ASTNode) child.getChild(0), ctx);
+          break;
+        default:
+          throw new UnsupportedOperationException("Unsupported ALTER TABLE operation: " + child.getText());
+      }
+    }
+
+    return new SqlAlterTable(
+            ZERO,
+            atOptions.tableName,
+            atOptions.operation,
+            atOptions.newTableName, atOptions.properties, atOptions.serdeName, atOptions.serdeProperties, atOptions.clusterCols, atOptions.sortCols, atOptions.buckets, atOptions.skewedCols, atOptions.skewedValues,
+            atOptions.storedAsDirs, atOptions.partitionSpec, atOptions.oldPartitionSpec, atOptions.newPartitionSpec, atOptions.branchName, atOptions.ifExists, atOptions.ifNotExists, atOptions.purge, atOptions.sourceTable,
+            atOptions.fileFormat, atOptions.compactionType, atOptions.compactionProps, atOptions.oldColName, atOptions.newColName, atOptions.newColType, atOptions.colComment, atOptions.afterCol, atOptions.newColumns,
+            atOptions.constraintName, atOptions.columnStats, atOptions.tableStats, atOptions.dropProperties, atOptions.skewedLocations, atOptions.newOwner, atOptions.convertType, atOptions.executeStatement, atOptions.branchName,
+            atOptions.tagName);
+  }
+
+  private List<SqlNode> buildOperandList(AlterTableOptions options) {
+    List<SqlNode> operands = new ArrayList<>();
+    switch (options.operation) {
+      case RENAME:
+        operands.add(options.newTableName);
+        break;
+      case SET_PROPERTIES:
+        operands.add(options.properties);
+        break;
+      case SET_SERDE:
+        operands.add(options.serdeName);
+        if (options.serdeProperties != null) {
+          operands.add(options.serdeProperties);
+        }
+        break;
+      case UNSET_SERDE_PROPERTIES:
+        operands.add(options.serdeProperties);
+        break;
+      case CLUSTER_SORT:
+        operands.add(options.clusterCols);
+        if (options.sortCols != null) {
+          operands.add(options.sortCols);
+        }
+        operands.add(options.buckets);
+        break;
+      case SKEWED:
+        if (options.skewedCols != null) {
+          operands.add(options.skewedCols);
+          operands.add(options.skewedValues);
+          operands.add(SqlLiteral.createBoolean(options.storedAsDirs, ZERO));
+        }
+        break;
+      case ADD_PARTITION:
+        operands.add(SqlLiteral.createBoolean(options.ifNotExists, ZERO));
+        operands.add(options.partitionSpec);
+        if (options.location != null) {
+          operands.add(options.location);
+        }
+        break;
+      case DROP_PARTITION:
+        operands.add(SqlLiteral.createBoolean(options.ifExists, ZERO));
+        operands.add(options.partitionSpec);
+        operands.add(SqlLiteral.createBoolean(options.purge, ZERO));
+        break;
+      case RENAME_PARTITION:
+        operands.add(options.oldPartitionSpec);
+        operands.add(options.newPartitionSpec);
+        break;
+      case EXCHANGE_PARTITION:
+        operands.add(options.partitionSpec);
+        operands.add(options.sourceTable);
+        break;
+      case ARCHIVE_PARTITION:
+      case UNARCHIVE_PARTITION:
+        operands.add(options.partitionSpec);
+        break;
+      case SET_FILE_FORMAT:
+        if (options.partitionSpec != null) {
+          operands.add(options.partitionSpec);
+        }
+        operands.add(options.fileFormat);
+        break;
+      case SET_LOCATION:
+        if (options.partitionSpec != null) {
+          operands.add(options.partitionSpec);
+        }
+        operands.add(options.location);
+        break;
+      case TOUCH:
+        if (options.partitionSpec != null) {
+          operands.add(options.partitionSpec);
+        }
+        break;
+      case COMPACT:
+        operands.add(options.compactionType);
+        if (options.compactionProps != null) {
+          operands.add(options.compactionProps);
+        }
+        break;
+      case CONCATENATE:
+        if (options.partitionSpec != null) {
+          operands.add(options.partitionSpec);
+        }
+        break;
+      case UPDATE_COLUMNS:
+        if (options.partitionSpec != null) {
+          operands.add(options.partitionSpec);
+        }
+        break;
+      case CHANGE_COLUMN:
+        if (options.partitionSpec != null) {
+          operands.add(options.partitionSpec);
+        }
+        operands.add(options.oldColName);
+        operands.add(options.newColName);
+        operands.add(options.newColType);
+        operands.add(options.colComment);
+        operands.add(options.afterCol);
+        break;
+      case ADD_COLUMNS:
+      case REPLACE_COLUMNS:
+        if (options.partitionSpec != null) {
+          operands.add(options.partitionSpec);
+        }
+        operands.add(options.newColumns);
+        break;
+      case CHANGE_PARTITION_COLUMN_TYPE:
+        operands.add(options.partitionSpec);
+        operands.add(options.newColType);
+        break;
+      case DROP_CONSTRAINT:
+        operands.add(options.constraintName);
+        break;
+      case UPDATE_COLUMN_STATS:
+        operands.add(options.columnStats);
+        break;
+      case UPDATE_TABLE_STATS:
+        operands.add(options.tableStats);
+        break;
+      case DROP_PROPERTIES:
+        operands.add(options.dropProperties);
+        break;
+      case SET_SKEWED_LOCATION:
+        operands.add(options.skewedLocations);
+        break;
+      case MERGE_FILES:
+        if (options.partitionSpec != null) {
+          operands.add(options.partitionSpec);
+        }
+        break;
+      case SET_BUCKETS:
+        operands.add(options.clusterCols);
+        operands.add(options.buckets);
+        break;
+      case SET_OWNER:
+        operands.add(options.newOwner);
+        break;
+      case SET_PARTITION_SPEC:
+        operands.add(options.partitionSpec);
+        break;
+      case CONVERT_TABLE:
+        operands.add(options.convertType);
+        break;
+      case EXECUTE:
+        operands.add(options.executeStatement);
+        break;
+      case DROP_BRANCH:
+      case CREATE_BRANCH:
+        operands.add(options.branchName);
+        break;
+      case DROP_TAG:
+      case CREATE_TAG:
+        operands.add(options.tagName);
+        break;
+      case RENAME_COLUMN:
+        operands.add(options.oldColName);
+        operands.add(options.newColName);
+        operands.add(options.newColType);
+        if (options.colComment != null) {
+          operands.add(options.colComment);
+        }
+        break;
+      default:
+        throw new UnsupportedOperationException("Unsupported ALTER TABLE operation: " + options.operation);
+    }
+    return operands;
   }
 
 
@@ -1981,6 +2253,51 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     SqlNodeList propertyList;
   }
 
+  static class AlterTableOptions {
+    SqlIdentifier tableName;
+    SqlAlterTable.AlterTableOperation operation;
+    SqlIdentifier newTableName;
+    SqlNodeList properties;
+    SqlNode serdeName;
+    SqlNodeList serdeProperties;
+    SqlNodeList clusterCols;
+    SqlNodeList sortCols;
+    SqlNode buckets;
+    SqlNodeList skewedCols;
+    SqlNodeList skewedValues;
+    boolean storedAsDirs;
+    SqlNode partitionSpec;
+    SqlNode oldPartitionSpec;
+    SqlNode newPartitionSpec;
+    SqlNode location;
+    boolean ifExists;
+    boolean ifNotExists;
+    boolean purge;
+    SqlIdentifier sourceTable;
+    SqlNode fileFormat;
+    SqlNode compactionType;
+    SqlNodeList compactionProps;
+    SqlIdentifier oldColName;
+    SqlIdentifier newColName;
+    SqlDataTypeSpec newColType;
+    SqlNode colComment;
+    SqlIdentifier afterCol;
+    SqlNodeList newColumns;
+    SqlIdentifier constraintName;
+    SqlNodeList columnStats;
+    SqlNodeList tableStats;
+    SqlNodeList dropProperties;
+    SqlNodeList skewedLocations;
+    SqlIdentifier newOwner;
+    SqlNode convertType;
+    SqlNode executeStatement;
+    SqlIdentifier branchName;
+    SqlIdentifier tagName;
+    boolean not_clusterd;
+    boolean not_sorted;
+    boolean skewedColsValuePair;
+    SqlCharStringLiteral part_location;
+  }
 
 //  static class CreateTableOptions {
 //    SqlIdentifier name;

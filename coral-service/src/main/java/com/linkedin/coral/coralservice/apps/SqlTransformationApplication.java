@@ -19,7 +19,14 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.dialect.HiveSqlDialect;
 import org.apache.calcite.sql.dialect.SparkSqlDialect;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SqlTransformationApplication {
     private final ConfigurationManager configManager;
@@ -96,22 +103,94 @@ public class SqlTransformationApplication {
         String createDb =  "CREATE REMOTE DATABASE IF NOT EXISTS external_sales COMMENT 'Remote database for sales data from external systems' USING mysql_connector WITH DBPROPERTIES ( 'connector.host' = 'remote-mysql-server.example.com', 'connector.port' = '3306', 'connector.user' = 'hive_user', 'connector.password' = 'secret_password', 'connector.database' = 'sales_data' )";
         String createDb2 = "CREATE DATABASE analytics_db LOCATION '/data/analytics' WITH DBPROPERTIES ( 'purpose' = 'Data analysis and reporting', 'team' = 'Data Science' )";
 
+        String dropdatabase  = "DROP DATABASE IF EXISTS financial_analytics_2023_q4 CASCADE";
+        String dropdatabase1  = "DROP SCHEMA customer_data_warehouse RESTRICT";
+        String dropdatabase2  = "DROP DATABASE IF EXISTS `data-science_projects.2024`";
 
+        String alter0 =  "ALTER TABLE table_name CHANGE COLUMN old_col_name new_col_name INT COMMENT 'New column comment' AFTER existing_column CASCADE";
+        String alter3 = "ALTER TABLE table_name ADD IF NOT EXISTS PARTITION (year=2023, month=12) LOCATION '/path/to/partition'";
+        String alter4 = "ALTER TABLE list_bucket_single  SKEWED BY (key) ON (1,5,6) STORED AS DIRECTORIES";
+
+
+        String switchDatabaseStatement = "USE database_name";
         ParseDriver pd = new CoralParseDriver(false);
-        ASTNode root = pd.parse(createDb);
+        ASTNode root = pd.parse(alter3);
         HiveAstPrinter.printAstTree(root);
 
         HiveSqlParser parser = new HiveSqlParser(HiveSqlDialect.DEFAULT);
-        SqlNode rootnode = parser.parse(createDb);
+        SqlNode rootnode = parser.parse(alter3);
         CalciteSqlNodeTreePrinter  printer = new CalciteSqlNodeTreePrinter();
         String detailedOutput = printer.print(rootnode);
         System.out.println(detailedOutput);
 
-        SqlTransformationApplication app = new SqlTransformationApplication.Builder().build();
-        String result = app.transformSql(createDb,"Hive","Spark");
-        System.out.println(result);
+//        SqlTransformationApplication app = new SqlTransformationApplication.Builder().build();
+//        String result = app.transformSql(alter2,"Hive","Spark");
+//        System.out.println(result);
 
+       /* try {
+            String[] sqlStatements = parseSqlFile("alter.sql");
 
+            for (String sql : sqlStatements) {
+                parseSql(sql);
+            }
+        } catch (IOException e) {
+            System.err.println("Error reading file: " + e.getMessage());
+        }*/
 
     }
+
+
+    private static final Pattern SQL_DELIMITER = Pattern.compile(";(?=(?:[^']*'[^']*')*[^']*$)");
+    public static String[] parseSqlFile(String fileName) throws IOException {
+        List<String> sqlStatements = new ArrayList<>();
+
+        try (InputStream is = SqlTransformationApplication.class.getClassLoader().getResourceAsStream(fileName);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+
+            if (is == null) {
+                throw new IOException("File not found: " + fileName);
+            }
+
+            String line;
+            StringBuilder sqlBuilder = new StringBuilder();
+
+            while ((line = reader.readLine()) != null) {
+                sqlBuilder.append(line).append("\n");
+            }
+
+            String fullSql = sqlBuilder.toString().trim();
+            Matcher matcher = SQL_DELIMITER.matcher(fullSql);
+
+            int lastEnd = 0;
+            while (matcher.find()) {
+                String sql = fullSql.substring(lastEnd, matcher.start()).trim();
+                if (!sql.isEmpty()) {
+                    sqlStatements.add(sql);
+                }
+                lastEnd = matcher.end();
+            }
+
+            // 添加最后一个SQL语句（如果有的话）
+            String lastSql = fullSql.substring(lastEnd).trim();
+            if (!lastSql.isEmpty()) {
+                sqlStatements.add(lastSql);
+            }
+        }
+
+        return sqlStatements.toArray(new String[0]);
+    }
+
+    private static void parseSql(String sql) {
+        try {
+            ParseDriver pd = new CoralParseDriver(false);
+            ASTNode root = pd.parse(sql);
+            System.out.println("Parsing SQL: " + sql);
+            HiveAstPrinter.printAstTree(root);
+            System.out.println("--------------------");
+        } catch (ParseException | org.apache.hadoop.hive.ql.parse.ParseException e) {
+            System.err.println("Error parsing SQL: " + sql);
+            System.err.println("Error message: " + e.getMessage());
+        }
+    }
+
 }
