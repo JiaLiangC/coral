@@ -4,9 +4,11 @@ import com.google.common.collect.ImmutableList;
 import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
-
+import com.linkedin.coral.common.calcite.sql.ddl.alter.*;
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 import static org.apache.calcite.sql.parser.SqlParserPos.ZERO;
@@ -15,7 +17,7 @@ public  class SqlAlterTable extends SqlCall {
     public enum AlterTableOperation {
         RENAME, SET_PROPERTIES, SET_SERDE, UNSET_SERDE_PROPERTIES, CLUSTER_SORT, SKEWED,NOT_SKEWED,
         ADD_PARTITION, DROP_PARTITION, RENAME_PARTITION, EXCHANGE_PARTITION, ARCHIVE_PARTITION,
-        UNARCHIVE_PARTITION, SET_FILE_FORMAT, SET_LOCATION, TOUCH, COMPACT, CONCATENATE,
+        UNARCHIVE_PARTITION, SET_PARTITION_FILE_FORMAT,SET_FILE_FORMAT, SET_LOCATION,SET_PARTITION_LOCATION, TOUCH, COMPACT, CONCATENATE,
         UPDATE_COLUMNS, CHANGE_COLUMN, ADD_COLUMNS, REPLACE_COLUMNS,
         CHANGE_PARTITION_COLUMN_TYPE,
         DROP_CONSTRAINT,
@@ -36,87 +38,11 @@ public  class SqlAlterTable extends SqlCall {
         RENAME_COLUMN
     }
 
-    private final SqlIdentifier tableName;
-    private final AlterTableOperation operation;
-    private final SqlIdentifier newTableName;
-    private final SqlNodeList properties;
-    private final SqlNode serdeName;
-    private final SqlNodeList serdeProperties;
-    private final SqlNodeList clusterCols;
-    private final SqlNodeList sortCols;
-    private final SqlNode buckets;
-    private final SqlNodeList skewedCols;
-    private final SqlNodeList skewedValues;
-    private final boolean storedAsDirs;
-    private final SqlNode partitionSpec;
-    private final SqlNode oldPartitionSpec;
-    private final SqlNode newPartitionSpec;
-    private final SqlNode location;
-    private final boolean ifExists;
-    private final boolean ifNotExists;
-    private final boolean purge;
-    private final SqlIdentifier sourceTable;
-    private final SqlNode fileFormat;
-    private final SqlNode compactionType;
-    private final SqlNodeList compactionProps;
-    private final SqlIdentifier oldColName;
-    private final SqlIdentifier newColName;
-    private final SqlDataTypeSpec newColType;
-    private final SqlNode colComment;
-    private final SqlIdentifier afterCol;
-    private final SqlNodeList newColumns;
-    private final SqlIdentifier constraintName;
-    private final SqlNodeList columnStats;
-    private final SqlNodeList tableStats;
-    private final SqlNodeList dropProperties;
-    private final SqlNodeList skewedLocations;
-    private final SqlIdentifier newOwner;
-    private final SqlNode convertType;
-    private final SqlNode executeStatement;
-    private final SqlIdentifier branchName;
-    private final SqlIdentifier tagName;
+    private final SqlNodeList operands;
 
-    public SqlAlterTable(SqlParserPos pos, SqlIdentifier tableName, AlterTableOperation operation, SqlIdentifier newTableName, SqlNodeList properties, SqlNode serdeName, SqlNodeList serdeProperties, SqlNodeList clusterCols, SqlNodeList sortCols, SqlNode buckets, SqlNodeList skewedCols, SqlNodeList skewedValues, boolean storedAsDirs, SqlNode partitionSpec, SqlNode oldPartitionSpec, SqlNode newPartitionSpec, SqlNode location, boolean ifExists, boolean ifNotExists, boolean purge, SqlIdentifier sourceTable, SqlNode fileFormat, SqlNode compactionType, SqlNodeList compactionProps, SqlIdentifier oldColName, SqlIdentifier newColName, SqlDataTypeSpec newColType, SqlNode colComment, SqlIdentifier afterCol, SqlNodeList newColumns, SqlIdentifier constraintName, SqlNodeList columnStats, SqlNodeList tableStats, SqlNodeList dropProperties, SqlNodeList skewedLocations, SqlIdentifier newOwner, SqlNode convertType, SqlNode executeStatement, SqlIdentifier branchName, SqlIdentifier tagName) {
+    public SqlAlterTable(SqlParserPos pos, SqlNodeList operands ) {
         super(pos);
-        this.tableName = tableName;
-        this.operation = operation;
-        this.newTableName = newTableName;
-        this.properties = properties;
-        this.serdeName = serdeName;
-        this.serdeProperties = serdeProperties;
-        this.clusterCols = clusterCols;
-        this.sortCols = sortCols;
-        this.buckets = buckets;
-        this.skewedCols = skewedCols;
-        this.skewedValues = skewedValues;
-        this.storedAsDirs = storedAsDirs;
-        this.partitionSpec = partitionSpec;
-        this.oldPartitionSpec = oldPartitionSpec;
-        this.newPartitionSpec = newPartitionSpec;
-        this.location = location;
-        this.ifExists = ifExists;
-        this.ifNotExists = ifNotExists;
-        this.purge = purge;
-        this.sourceTable = sourceTable;
-        this.fileFormat = fileFormat;
-        this.compactionType = compactionType;
-        this.compactionProps = compactionProps;
-        this.oldColName = oldColName;
-        this.newColName = newColName;
-        this.newColType = newColType;
-        this.colComment = colComment;
-        this.afterCol = afterCol;
-        this.newColumns = newColumns;
-        this.constraintName = constraintName;
-        this.columnStats = columnStats;
-        this.tableStats = tableStats;
-        this.dropProperties = dropProperties;
-        this.skewedLocations = skewedLocations;
-        this.newOwner = newOwner;
-        this.convertType = convertType;
-        this.executeStatement = executeStatement;
-        this.branchName = branchName;
-        this.tagName = tagName;
+        this.operands=operands;
     }
 
     @Override
@@ -129,54 +55,7 @@ public  class SqlAlterTable extends SqlCall {
                 if (operands.length < 2) {
                     throw new IllegalArgumentException("ALTER TABLE must have at least 2 operands");
                 }
-
-                SqlIdentifier tableName = (SqlIdentifier) operands[0];
-                AlterTableOperation operation = AlterTableOperation.valueOf(((SqlLiteral) operands[1]).getStringValue());
-                SqlIdentifier newTableName = (SqlIdentifier) operands[2];
-                SqlNodeList properties = (SqlNodeList) operands[3];
-                SqlNode serdeName = operands[4];
-                SqlNodeList serdeProperties = (SqlNodeList) operands[5];
-                SqlNodeList clusterCols = (SqlNodeList) operands[6];
-                SqlNodeList sortCols = (SqlNodeList) operands[7];
-                SqlNode buckets = operands[8];
-                SqlNodeList skewedCols = (SqlNodeList) operands[9];
-                SqlNodeList skewedValues = (SqlNodeList) operands[10];
-                boolean storedAsDirs = ((SqlLiteral) operands[11]).booleanValue();
-                SqlNode partitionSpec = operands[12];
-                SqlNode oldPartitionSpec = operands[13];
-                SqlNode newPartitionSpec = operands[14];
-                SqlNode location = operands[15];
-                boolean ifExists = ((SqlLiteral) operands[16]).booleanValue();
-                boolean ifNotExists = ((SqlLiteral) operands[17]).booleanValue();
-                boolean purge = ((SqlLiteral) operands[18]).booleanValue();
-                SqlIdentifier sourceTable = (SqlIdentifier) operands[19];
-                SqlNode fileFormat = operands[20];
-                SqlNode compactionType = operands[21];
-                SqlNodeList compactionProps = (SqlNodeList) operands[22];
-                SqlIdentifier oldColName = (SqlIdentifier) operands[23];
-                SqlIdentifier newColName = (SqlIdentifier) operands[24];
-                SqlDataTypeSpec newColType = (SqlDataTypeSpec) operands[25];
-                SqlNode colComment = operands[26];
-                SqlIdentifier afterCol = (SqlIdentifier) operands[27];
-                SqlNodeList newColumns = (SqlNodeList) operands[28];
-                SqlIdentifier constraintName = (SqlIdentifier) operands[29];
-                SqlNodeList columnStats = (SqlNodeList) operands[30];
-                SqlNodeList tableStats = (SqlNodeList) operands[31];
-                SqlNodeList dropProperties = (SqlNodeList) operands[32];
-                SqlNodeList skewedLocations = (SqlNodeList) operands[33];
-                SqlIdentifier newOwner = (SqlIdentifier) operands[34];
-                SqlNode convertType = operands[35];
-                SqlNode executeStatement = operands[36];
-                SqlIdentifier branchName = (SqlIdentifier) operands[37];
-                SqlIdentifier tagName = (SqlIdentifier) operands[38];
-
-                return new SqlAlterTable(pos, tableName, operation, newTableName, properties,
-                        serdeName, serdeProperties, clusterCols, sortCols, buckets, skewedCols,
-                        skewedValues, storedAsDirs, partitionSpec, oldPartitionSpec, newPartitionSpec,
-                        location, ifExists, ifNotExists, purge, sourceTable, fileFormat, compactionType,
-                        compactionProps, oldColName, newColName, newColType, colComment, afterCol,
-                        newColumns, constraintName, columnStats, tableStats, dropProperties,
-                        skewedLocations, newOwner, convertType, executeStatement, branchName, tagName);
+                return new SqlAlterTable(pos, new SqlNodeList(Arrays.asList(operands),ZERO));
             }
         };
     }
@@ -184,20 +63,35 @@ public  class SqlAlterTable extends SqlCall {
 
     @Override
     public List<SqlNode> getOperandList() {
-//        return ImmutableList.<SqlNode>builder()
-//                .add(tableName)
-//                .add()
-//                .addAll(operands)
-//                .build();
-
-        return ImmutableNullableList.of(tableName, SqlLiteral.createSymbol(operation, ZERO),newTableName,properties,serdeName,serdeProperties,
-                clusterCols,sortCols,buckets,skewedCols,skewedValues,SqlLiteral.createBoolean(storedAsDirs,ZERO),partitionSpec,oldPartitionSpec,
-                newPartitionSpec,location,SqlLiteral.createBoolean(ifExists,ZERO),SqlLiteral.createBoolean(ifNotExists,ZERO),SqlLiteral.createBoolean(purge,ZERO) ,sourceTable,fileFormat,compactionType,compactionProps,
-                oldColName,newColName,newColType,colComment,afterCol,newColumns,constraintName,
-                columnStats,tableStats,dropProperties,skewedLocations,newOwner,convertType,executeStatement,branchName,tagName
-                );
+        return ImmutableNullableList.of(operands);
     }
 
+
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+
+        writer.keyword("ALTER TABLE");
+        List<SqlNode> sortedOperands = new ArrayList<>(operands);
+        sortedOperands.sort(Comparator.comparingInt(node -> getClausePriority(node).getPriority()));
+
+
+        for (int i = 0; i < sortedOperands.size(); i++) {
+            SqlNode property = sortedOperands.get(i);
+            property.unparse(writer, leftPrec, rightPrec);
+        }
+    }
+
+    private ClausePriority getClausePriority(SqlNode node) {
+        if (node instanceof SqlIdentifier) {
+            return ClausePriority.TABLE_NAME;
+        } else if (node instanceof SqlAlterPartition) {
+            return ClausePriority.PARTITION;
+        } else if (node instanceof SqlAlterTableBuckets) {
+            return ClausePriority.CLUSTERED_BY; // 假设这个类包含CLUSTERED BY和SORTED BY
+        } else {
+            return ClausePriority.OTHER;
+        }
+    }
 //    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 //        writer.keyword("ALTER TABLE");
 //        tableName.unparse(writer, leftPrec, rightPrec);

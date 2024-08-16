@@ -11,6 +11,7 @@ import java.util.List;
 
 import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableNullableList;
 import org.apache.calcite.util.NlsString;
 
@@ -62,8 +63,10 @@ public class SqlProperty extends SqlCall {
   @Override
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
     key.unparse(writer, leftPrec, rightPrec);
-    writer.keyword("=");
-    value.unparse(writer, leftPrec, rightPrec);
+    if(!(value instanceof SqlLiteral && ((SqlLiteral) value).getTypeName()== SqlTypeName.NULL)){
+      writer.keyword("=");
+      value.unparse(writer, leftPrec, rightPrec);
+    }
   }
 }
 

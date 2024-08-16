@@ -9,27 +9,23 @@ import java.util.List;
 
 import com.google.common.collect.ImmutableList;
 
-import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.calcite.sql.SqlWriter;
+import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 
 public class SqlValueTuple extends SqlCall {
 
-  public SqlValueTuple(SqlParserPos pos, SqlNode... values) {
+  private final SqlNodeList values;
+
+  public SqlValueTuple(SqlParserPos pos, SqlNodeList values) {
     super(pos);
-    this.values = ImmutableList.copyOf(values);
+    this.values = values;
   }
 
   public List<SqlNode> getValues() {
     return values;
   }
 
-  private final ImmutableList<SqlNode> values;
 
   @Override
   public SqlOperator getOperator() {

@@ -1,105 +1,158 @@
--- Rename Table
 ALTER TABLE old_table_name RENAME TO new_table_name;
-
--- Alter Table Properties
 ALTER TABLE table_name SET TBLPROPERTIES ('comment' = 'New table comment','b'='c');
+ALTER TABLE table_name SET SERDE 'org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe' WITH SERDEPROPERTIES ('serialization.format' = ',', 'field.delim' = ',');
+ALTER TABLE table_name PARTITION (year=2024, month=8) SET SERDE 'org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe' WITH SERDEPROPERTIES ('serialization.format' = ',', 'field.delim' = ',');
 
--- Add SerDe Properties
-ALTER TABLE table_name SET SERDE 'org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe'
-    WITH SERDEPROPERTIES ('serialization.format' = ',', 'field.delim' = ',');
 
--- Remove SerDe Properties
 ALTER TABLE table_name UNSET SERDEPROPERTIES ('field.delim');
+ALTER TABLE table_name PARTITION (year=2024, month=8) UNSET SERDEPROPERTIES ('field.delim');
 
--- Alter Table Storage Properties
 ALTER TABLE table_name CLUSTERED BY (id) SORTED BY (name) INTO 5 BUCKETS;
+ALTER TABLE table_name PARTITION (year=2024, month=8) CLUSTERED BY (id) SORTED BY (name) INTO 5 BUCKETS;
 
--- Alter Table Skewed
-ALTER TABLE table_name SKEWED BY (col1, col2)
-    ON ((1,1), (2,2)) STORED AS DIRECTORIES;
-
-
+ALTER TABLE table_name SKEWED BY (col1, col2)    ON ((1,1), (2,2)) STORED AS DIRECTORIES;
 ALTER TABLE my_table NOT CLUSTERED;
-
 ALTER TABLE my_table NOT SORTED;
-
--- Alter Table Not Skewed
 ALTER TABLE table_name NOT SKEWED;
-
--- Alter Table Not Stored as Directories
 ALTER TABLE table_name NOT STORED AS DIRECTORIES;
-
-
 ALTER TABLE list_bucket_single  SKEWED BY (key) ON (1,5,6) STORED AS DIRECTORIES;
-
 ALTER TABLE list_bucket_multiple SKEWED BY (col1, col2) ON (('s1',1), ('s3',3), ('s13',13), ('s78',78)) STORED AS DIRECTORIES;
-
--- Alter Table Set Skewed Location
 ALTER TABLE table_name SET SKEWED LOCATION (('value1', 'value2') = 'hdfs://location1',('value3', 'value4') = 'hdfs://location2');
-
--- Alter Table Constraints
 ALTER TABLE table_name ADD CONSTRAINT pk_constraint PRIMARY KEY (id) DISABLE NOVALIDATE;
-
--- Add Partition
+ALTER TABLE products ADD CONSTRAINT pk_product PRIMARY KEY (id);
+ALTER TABLE products ADD CONSTRAINT chk_price CHECK (price > 0) ENFORCED;
+ALTER TABLE orders ADD CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ENABLE VALIDATE;
+ALTER TABLE orders ADD CONSTRAINT fk_product    FOREIGN KEY (product_id) REFERENCES products(id) DISABLE NOVALIDATE;
+ALTER TABLE customers ADD CONSTRAINT uk_email UNIQUE (email) ENABLE VALIDATE RELY;
+ALTER TABLE customers ADD CONSTRAINT uk_phone    UNIQUE (phone) DISABLE NOVALIDATE NORELY;
+ALTER TABLE orders DROP CONSTRAINT fk_customer;
 ALTER TABLE table_name ADD IF NOT EXISTS PARTITION (year=2023, month=12) LOCATION '/path/to/partition';
-
--- Rename Partition
-ALTER TABLE table_name PARTITION (year=2023, month=11)
-    RENAME TO PARTITION (year=2023, month=12);
-
--- Exchange Partition
-ALTER TABLE target_table EXCHANGE PARTITION (year=2023, month=12)
-    WITH TABLE source_table;
-
--- Recover Partitions
+ALTER TABLE my_table CHANGE COLUMN old_col new_col INT;
+ALTER TABLE my_table CHANGE COLUMN old_col new_col VARCHAR(100);
+ALTER TABLE my_table CHANGE COLUMN old_col new_col INT COMMENT 'This is a new column';
+ALTER TABLE my_table CHANGE COLUMN old_col new_col INT FIRST;
+ALTER TABLE my_table CHANGE COLUMN old_col new_col INT AFTER another_col;
+ALTER TABLE my_table CHANGE COLUMN old_col new_col INT NOT NULL;
+ALTER TABLE my_table CHANGE COLUMN old_col new_col INT DEFAULT 0;
+ALTER TABLE my_table CHANGE COLUMN old_col new_col INT PRIMARY KEY;
+ALTER TABLE my_table CHANGE COLUMN old_col new_col INT UNIQUE;
+ALTER TABLE my_table CHANGE COLUMN old_col new_col INT REFERENCES other_table(id);
+ALTER TABLE my_table CHANGE COLUMN old_col new_col INT CONSTRAINT my_constraint PRIMARY KEY;
+ALTER TABLE my_table CHANGE COLUMN old_col new_col INT CASCADE;
+ALTER TABLE my_table CHANGE COLUMN old_col new_col INT RESTRICT;
+ALTER TABLE my_table CHANGE COLUMN old_col new_col TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE my_table CHANGE COLUMN old_col new_col INT CHECK (new_col > 0);
+ALTER TABLE table_name PARTITION (year=2023, month=11) RENAME TO PARTITION (year=2023, month=12);
+ALTER TABLE target_table EXCHANGE PARTITION (year=2023, month=12)    WITH TABLE source_table;
 MSCK REPAIR TABLE table_name;
-
--- Drop Partition
 ALTER TABLE table_name DROP IF EXISTS PARTITION (year=2023, month=12) PURGE;
-
--- Archive Partition
 ALTER TABLE table_name ARCHIVE PARTITION (year=2023, month=12);
-
--- Unarchive Partition
-ALTER TABLE table_name UNARCHIVE PARTITION (year=2023, month=12);
-
--- Alter Table/Partition File Format
-ALTER TABLE table_name PARTITION (year=2023, month=12)
-    SET FILEFORMAT PARQUET;
-
--- Alter Table/Partition Location
-ALTER TABLE table_name PARTITION (year=2023, month=12)
-    SET LOCATION "hdfs://new_location";
-
--- Alter Table/Partition Touch
+ALTER TABLE table_name UNARCHIVE PARTITION (year=2023, month=12)  PARTITION (year=2024, month=12);
+ALTER TABLE my_table SET FILEFORMAT PARQUET;
+ALTER TABLE my_table PARTITION (year=2024, month=8) SET FILEFORMAT ORC;
+ALTER TABLE my_table SET FILEFORMAT INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat' SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe';
+ALTER TABLE my_table PARTITION (year=2024, month=8) SET FILEFORMAT INPUTFORMAT 'org.apache.hadoop.mapred.SequenceFileInputFormat' OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat' SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' INPUTDRIVER 'com.example.InputDriver' OUTPUTDRIVER 'com.example.OutputDriver';
+ALTER TABLE my_table SET FILEFORMAT my_custom_format;
+ALTER TABLE my_table PARTITION (year=2024, month=8) SET FILEFORMAT my_custom_partition_format;
+ALTER TABLE table_name PARTITION (year=2023, month=12) SET FILEFORMAT PARQUET;
+ALTER TABLE table_name PARTITION (year=2023, month=12) SET LOCATION "hdfs://new_location";
 ALTER TABLE table_name TOUCH PARTITION (year=2023, month=12);
-
--- Alter Table/Partition Compact
-ALTER TABLE table_name PARTITION (year=2023, month=12)
-    COMPACT 'MAJOR' AND WAIT;
-
--- Alter Table/Partition Concatenate
+ALTER TABLE table_name PARTITION (year=2023, month=12)    COMPACT 'MAJOR' AND WAIT;
+OPTIMIZE TABLE table_name REWRITE DATA;
 ALTER TABLE table_name PARTITION (year=2023, month=12) CONCATENATE;
-
--- Alter Table/Partition Update Columns
+ALTER TABLE sales  PARTITION (year=2023, month=12) UPDATE STATISTICS FOR COLUMN id SET ('numDVs'='1000000', 'numNulls'='0') COMMENT 'Updated stats for id column';
+ALTER TABLE sales UPDATE STATISTICS FOR COLUMN id SET ('numDVs'='1000000', 'numNulls'='0') COMMENT 'Updated stats for id column';
+ALTER TABLE sales UPDATE STATISTICS FOR sale_amount SET ('numDVs'='10000', 'avgColLen'='8', 'maxColLen'='10', 'minColLen'='6') COMMENT 'Detailed stats for sale_amount';
+ALTER TABLE sales PARTITION (year=2023, month=7) UPDATE STATISTICS FOR COLUMN product_id SET ('numDVs'='1000', 'highValue'='5000', 'lowValue'='1') COMMENT 'Stats for product_id in July 2023';
+ALTER TABLE sales UPDATE STATISTICS FOR sale_date SET ('numDVs'='365', 'numNulls'='0');
+ALTER TABLE sales UPDATE STATISTICS FOR COLUMN year SET ('numDVs'='5', 'lowValue'='2019', 'highValue'='2023') COMMENT 'Stats for year column across all partitions';
+ALTER TABLE my_table SET OWNER USER john_doe;
+ALTER TABLE customer_data SET OWNER GROUP finance_team;
+ALTER TABLE sales_report SET OWNER ROLE data_analyst;
+ALTER TABLE aaaaa SET OWNER USER JohnDoe;
+ALTER TABLE employee_records SET OWNER GROUP Department;
+ALTER TABLE my_table SET PARTITION SPEC (date_column);
+ALTER TABLE my_table SET PARTITION SPEC (year_column, month_column, day_column);
+ALTER TABLE my_table SET PARTITION SPEC (YEAR(date_column));
+ALTER TABLE my_table SET PARTITION SPEC (MONTH(date_column));
+ALTER TABLE my_table SET PARTITION SPEC (DAY(date_column));
+ALTER TABLE my_table SET PARTITION SPEC (HOUR(timestamp_column));
+ALTER TABLE my_table SET PARTITION SPEC (TRUNCATE(10, numeric_column));
+ALTER TABLE my_table SET PARTITION SPEC (BUCKET(20, string_column));
+ALTER TABLE my_skewed_table PARTITION (dt='2024-08-15', country='US') SET SKEWED LOCATION ( (1, 'New York') = '/data/us/ny', (2, 'Los Angeles') = '/data/us/la', (3, 'Chicago') = '/data/us/chicago' );
+ALTER TABLE complex_skewed_table PARTITION (year=2024, quarter=1) SET SKEWED LOCATION ( ('small', 100) = '/data/small_100', ('medium', 500) = '/data/medium_500', ('large', 1000) = '/data/large_1000', (NULL, 'unknown') = '/data/null_unknown' );
+ALTER TABLE my_table SET PARTITION SPEC ( YEAR(date_column), MONTH(date_column), TRUNCATE(100, numeric_column), BUCKET(5, category_column) );
+ALTER TABLE my_table SET TBLPROPERTIES ( 'comment' = 'This is a test table', 'creator' = 'John Doe', 'last_modified_time' = '2024-08-15' );
+ALTER TABLE my_table UNSET TBLPROPERTIES ( 'comment', 'creator' );
+ALTER TABLE my_table UNSET TBLPROPERTIES IF EXISTS ( 'comment', 'creator', 'non_existent_property' );
+ALTER TABLE table_name ADD COLUMNS ( new_col1 STRING COMMENT 'New column 1', new_col2 INT COMMENT 'New column 2' ) CASCADE;
+ALTER TABLE my_table REPLACE COLUMNS ( existing_column1 INT, existing_column2 STRING, new_column3 BOOLEAN );
+ALTER TABLE table_name REPLACE COLUMNS ( col1 INT COMMENT 'Replaced column 1', col2 STRING COMMENT 'Replaced column 2' ) CASCADE;
 ALTER TABLE table_name PARTITION (year=2023, month=12) UPDATE COLUMNS;
-
--- Change Column
-ALTER TABLE table_name CHANGE COLUMN old_col_name new_col_name INT
-    COMMENT 'New column comment' AFTER existing_column CASCADE;
-
--- Add Columns
-ALTER TABLE table_name ADD COLUMNS (
-  new_col1 STRING COMMENT 'New column 1',
-  new_col2 INT COMMENT 'New column 2'
-) CASCADE;
-
--- Replace Columns
-ALTER TABLE table_name REPLACE COLUMNS (
-    col1 INT COMMENT 'Replaced column 1',
-    col2 STRING COMMENT 'Replaced column 2'
-    ) CASCADE;
-
--- Partial Partition Specification
+ALTER TABLE table_name UPDATE COLUMNS RESTRICT;
+ALTER TABLE table_name UPDATE COLUMNS CASCADE;
+ALTER TABLE table_name CHANGE COLUMN old_col_name new_col_name INT COMMENT 'New column comment' AFTER existing_column CASCADE;
+ALTER TABLE my_table ADD COLUMNS (new_column INT);
+ALTER TABLE my_table ADD COLUMNS (new_column TIMESTAMP) RESTRICT;
 ALTER TABLE foo PARTITION (ds='2008-04-08', hr=11) CHANGE COLUMN dec_column_name dec_column_name DECIMAL(38,18);
 ALTER TABLE foo PARTITION (ds='2008-04-08', hr) CHANGE COLUMN dec_column_name dec_column_name DECIMAL(38,18);
+ALTER TABLE my_table CONVERT TO PARQUET;
+ALTER TABLE my_table CONVERT TO ORC TBLPROPERTIES ('orc.compress'='SNAPPY', 'orc.create.index'='true');
+ALTER TABLE my_table CONVERT TO AVRO TBLPROPERTIES ('avro.schema.url'='hdfs:///schemas/my_schema.avsc');
+ALTER TABLE my_table CONVERT TO AVRO;
+ALTER TABLE my_table EXECUTE ROLLBACK('20240101');
+ALTER TABLE my_table EXECUTE ROLLBACK(123456);
+ALTER TABLE my_table EXECUTE EXPIRE_SNAPSHOTS;
+ALTER TABLE my_table EXECUTE EXPIRE_SNAPSHOTS('7d');
+ALTER TABLE my_table EXECUTE SET_CURRENT_SNAPSHOT(12345);
+ALTER TABLE my_table EXECUTE SET_CURRENT_SNAPSHOT('snapshot_id_123');
+ALTER TABLE my_table EXECUTE FAST-FORWARD 'source_branch';
+ALTER TABLE my_table EXECUTE FAST-FORWARD 'source_branch' 'target_branch';
+ALTER TABLE my_table EXECUTE CHERRY-PICK 12345;
+ALTER TABLE my_table EXECUTE EXPIRE_SNAPSHOTS BETWEEN '2024-01-01' AND '2024-06-30';
+ALTER TABLE my_table EXECUTE EXPIRE_SNAPSHOTS RETAIN LAST 5;
+ALTER TABLE my_table EXECUTE DELETE ORPHAN-FILES;
+ALTER TABLE my_table EXECUTE DELETE ORPHAN-FILES OLDER THAN ('2024-01-01');
+ALTER TABLE my_table DROP BRANCH branch_name;
+ALTER TABLE my_table DROP BRANCH IF EXISTS optional_branch;
+ALTER TABLE my_database.my_table DROP BRANCH `complex.branch.name`;
+ALTER TABLE my_table DROP BRANCH dev_branch;
+ALTER TABLE my_table CREATE BRANCH new_branch;
+ALTER TABLE my_table CREATE BRANCH new_branch  FOR SYSTEM_VERSION AS OF 12345;
+ALTER TABLE my_table CREATE BRANCH new_branch RETAIN  10 Days;
+ALTER TABLE my_table CREATE BRANCH new_branch  FOR SYSTEM_VERSION AS OF 1111 RETAIN 10 Days  WITH SNAPSHOT RETENTION 30 SNAPSHOTS 10 Days;
+ALTER TABLE my_table CREATE BRANCH new_branch  FOR SYSTEM_VERSION AS OF 12345  WITH SNAPSHOT RETENTION 30 SNAPSHOTS 10 Days;
+ALTER TABLE my_table DROP TAG my_tag;
+ALTER TABLE my_table DROP TAG IF EXISTS optional_tag;
+ALTER TABLE my_database.my_table DROP TAG `complex tag name`;
+ALTER TABLE partitioned_table DROP TAG IF EXISTS partition_tag;
+ALTER TABLE my_table DROP TAG my_tag;
+ALTER TABLE my_table DROP TAG IF EXISTS optional_tag;
+ALTER TABLE my_table CREATE TAG new_tag;
+ALTER TABLE my_table CREATE TAG retention_tag RETAIN 30 DAYS;
+
+ALTER TABLE my_table CREATE TAG my_tag;
+ALTER TABLE my_table CREATE TAG my_tag_v1 FOR SYSTEM_VERSION AS OF 123456;
+ALTER TABLE my_table CREATE TAG my_tag_t1 FOR SYSTEM_TIME AS OF '2023-08-15 10:00:00';
+ALTER TABLE my_table CREATE TAG my_tag_ref FOR TAG AS OF previous_tag;
+ALTER TABLE my_table CREATE TAG my_tag_retain_days RETAIN 7 DAYS;
+ALTER TABLE my_table CREATE TAG my_tag_retain_hours RETAIN 168 HOURS;
+ALTER TABLE my_table CREATE TAG my_tag_retain_weeks RETAIN 4 Days;
+ALTER TABLE my_table CREATE TAG my_tag_complex FOR SYSTEM_VERSION AS OF 987654 RETAIN 30 DAYS;
+ALTER TABLE my_table CREATE TAG my_tag_complex_time FOR SYSTEM_TIME AS OF '2023-08-15 12:00:00' RETAIN 2 DAYS;
+
+ALTER DATABASE my_database SET LOCATION '/path/to/new/location';
+ALTER DATABASE finance_db SET MANAGEDLOCATION '/managed/path/for/finance';
+ALTER TABLE employees CHANGE COLUMN emp_id employee_id INT;
+ALTER TABLE products CHANGE COLUMN price unit_price DECIMAL(10,2) COMMENT 'Price per unit';
+ALTER TABLE orders CHANGE COLUMN order_date order_timestamp TIMESTAMP NOT NULL;
+ALTER TABLE users CHANGE COLUMN status user_status VARCHAR(20) DEFAULT 'Active';
+ALTER TABLE inventory CHANGE COLUMN quantity stock_quantity INT AFTER product_id;
+ALTER TABLE customers CHANGE COLUMN cust_id customer_id INT FIRST;
+ALTER TABLE order_items CHANGE COLUMN product_id item_id INT CONSTRAINT fk_item_product REFERENCES products(id) DISABLE NOVALIDATE;
+ALTER TABLE employees CHANGE COLUMN salary employee_salary DECIMAL(10,2)  CONSTRAINT salary_check CHECK (employee_salary > 0) ENABLE;
+ALTER TABLE departments CHANGE COLUMN dept_name department_name VARCHAR(100) CASCADE;
+ALTER TABLE products CHANGE COLUMN price unit_price DECIMAL(10,2) NOT NULL   ENABLE VALIDATE RELY AFTER product_name;
+ALTER TABLE products CHANGE COLUMN price unit_price DECIMAL(10,2)  DEFAULT 0.00  ENABLE VALIDATE RELY AFTER product_name;
+ALTER TABLE products CHANGE COLUMN price unit_price DECIMAL(10,2)  CONSTRAINT price_check CHECK (unit_price >= 0)  ENABLE VALIDATE RELY AFTER product_name;
+ALTER TABLE table_name COMPACT 'major' CLUSTERED INTO 10 BUCKETS AND WAIT POOL 'custom_pool' WITH OVERWRITE TBLPROPERTIES ('property1' = 'value1', 'property2' = 'value2') ORDER BY column1 ASC, column2 DESC;

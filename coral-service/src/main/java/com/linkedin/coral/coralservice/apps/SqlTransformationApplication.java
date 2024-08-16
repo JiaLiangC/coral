@@ -93,7 +93,7 @@ public class SqlTransformationApplication {
         pluginManager.shutdownPlugins();
     }
 
-    public static void main(String[] args) throws ParseException, org.apache.hadoop.hive.ql.parse.ParseException {
+    public static void main(String[] args) throws ParseException, org.apache.hadoop.hive.ql.parse.ParseException, IOException {
         String sql11_ddl = "select  i_item_id ,i_item_desc  ,i_category  ,i_class  ,i_current_price ,sum(ws_ext_sales_price) as itemrevenue  ,sum(ws_ext_sales_price)*100/sum(sum(ws_ext_sales_price)) over (partition by i_class) as revenueratio from  web_sales ,item  ,date_dim where  ws_item_sk = i_item_sk  and i_category in ('Electronics', 'Books', 'Women') and ws_sold_date_sk = d_date_sk and d_date between cast('1998-01-06' as date)  and (cast('1998-01-06' as date) + 30 days) group by  i_item_id ,i_item_desc  ,i_category ,i_class ,i_current_price order by  i_category ,i_class ,i_item_id ,i_item_desc ,revenueratio limit 100";
         String sql1_ddl = " CREATE EXTERNAL TABLE complex_example ( id INT COMMENT 'Unique identifier', name STRING, age INT CHECK (age >= 18) ENABLE, email STRING UNIQUE DISABLE NOVALIDATE, preferences MAP<STRING, STRING>, tags ARRAY<STRING>, address STRUCT<street:STRING, city:STRING, zip:INT>, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP() ) COMMENT 'A complex table example' PARTITIONED BY (year INT, month INT) CLUSTERED BY (id) SORTED BY (name ASC) INTO 16 BUCKETS ROW FORMAT DELIMITED FIELDS TERMINATED BY '\\t' COLLECTION ITEMS TERMINATED BY ',' MAP KEYS TERMINATED BY ':' STORED AS ORC LOCATION '/user/hive/complex_example' TBLPROPERTIES ('creator'='Data Team', 'created_at'='2023-05-01')";
         String sql13_ddl = "CREATE TABLE basic_table (id INT, name STRING)";
@@ -108,7 +108,7 @@ public class SqlTransformationApplication {
         String dropdatabase2  = "DROP DATABASE IF EXISTS `data-science_projects.2024`";
 
         String alter0 =  "ALTER TABLE table_name CHANGE COLUMN old_col_name new_col_name INT COMMENT 'New column comment' AFTER existing_column CASCADE";
-        String alter3 = "ALTER TABLE table_name ADD IF NOT EXISTS PARTITION (year=2023, month=12) LOCATION '/path/to/partition'";
+        String alter3 = "ALTER TABLE list_bucket_single  SKEWED BY (key) ON (1,5,6) STORED AS DIRECTORIES";
         String alter4 = "ALTER TABLE list_bucket_single  SKEWED BY (key) ON (1,5,6) STORED AS DIRECTORIES";
 
 
@@ -123,19 +123,27 @@ public class SqlTransformationApplication {
         String detailedOutput = printer.print(rootnode);
         System.out.println(detailedOutput);
 
-//        SqlTransformationApplication app = new SqlTransformationApplication.Builder().build();
-//        String result = app.transformSql(alter2,"Hive","Spark");
-//        System.out.println(result);
-
-       /* try {
+        SqlTransformationApplication app = new SqlTransformationApplication.Builder().build();
+        String result = app.transformSql(alter3,"Hive","Spark");
+        System.out.println(result);
+    /*        ArrayList<String> errSqls = new ArrayList<>();
             String[] sqlStatements = parseSqlFile("alter.sql");
 
             for (String sql : sqlStatements) {
-                parseSql(sql);
+                try {
+                    parseSql(sql);
+                }catch (Exception e){
+                    errSqls.add(sql);
+                    System.err.println("---------Error reading file: " + e.getMessage()+ sql);
+                }
             }
-        } catch (IOException e) {
-            System.err.println("Error reading file: " + e.getMessage());
-        }*/
+
+
+            System.out.println("totaly "+ errSqls.size()+"error");
+            for(String sql : errSqls){
+                System.out.println(sql+";");
+            }*/
+
 
     }
 
@@ -180,17 +188,11 @@ public class SqlTransformationApplication {
         return sqlStatements.toArray(new String[0]);
     }
 
-    private static void parseSql(String sql) {
-        try {
+    private static void parseSql(String sql) throws org.apache.hadoop.hive.ql.parse.ParseException, ParseException {
             ParseDriver pd = new CoralParseDriver(false);
             ASTNode root = pd.parse(sql);
             System.out.println("Parsing SQL: " + sql);
             HiveAstPrinter.printAstTree(root);
-            System.out.println("--------------------");
-        } catch (ParseException | org.apache.hadoop.hive.ql.parse.ParseException e) {
-            System.err.println("Error parsing SQL: " + sql);
-            System.err.println("Error message: " + e.getMessage());
-        }
     }
 
 }

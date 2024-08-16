@@ -15,7 +15,9 @@ import javax.annotation.Nullable;
 import com.linkedin.coral.common.calcite.CalciteUtil;
 import com.linkedin.coral.common.calcite.sql.*;
 import com.linkedin.coral.common.calcite.sql.ddl.*;
+import com.linkedin.coral.common.calcite.sql.ddl.SqlAlterTable;
 import com.linkedin.coral.common.calcite.sql.ddl.SqlAlterTable.AlterTableOperation;
+import com.linkedin.coral.common.calcite.sql.ddl.alter.*;
 import com.linkedin.coral.common.calcite.sql.ddl.constraint.SqlColumnConstraint;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.*;
@@ -69,7 +71,6 @@ import static org.apache.calcite.sql.parser.SqlParserPos.ZERO;
  * we haven't specialized that part yet.
  */
 
- //todo ParseTreeBuilder 中递归getChildrend的逻辑还是不明白
 public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuilder.ParseContext> {
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   private final HiveFunctionResolver functionResolver;
@@ -999,7 +1000,6 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
 
   }
 
-
   @Override
   protected SqlNode visitBinary(ASTNode node, ParseContext ctx) {
     return createBasicTypeSpec(SqlTypeName.BINARY);
@@ -1409,6 +1409,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     │   │   │           └name (24)
     │   │   └16 (420)
     */
+  //test done ALTER TABLE table_name PARTITION (year=2024, month=8) CLUSTERED BY (id) SORTED BY (name) INTO 5 BUCKETS
   private void visitClusterAndSort(ASTNode node, CreateTableOptions ctOptions, ParseContext ctx) {
     for (Node child : node.getChildren()) {
       ASTNode ast = (ASTNode) child;
@@ -1465,14 +1466,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
 
   @Override
   protected SqlNodeList visitTableProperties(ASTNode node, ParseContext ctx) {
-    SqlNodeList properties = (SqlNodeList) visitChildren(node, ctx).get(0);
-//    for (Node child : node.getChildren()) {
-//      ASTNode ast = (ASTNode) child;
-//      if (ast.getType() == HiveParser.TOK_TABLEPROPLIST){
-//        SqlNodeList properties = visitChildren(node, ctx);
-//      }
-//    }
-    return properties;
+      return (SqlNodeList) visitChildren(node, ctx).get(0);
   }
 
   @Override
@@ -1486,7 +1480,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     List<SqlNode> sqlNodeList = visitChildren(node, ctx);
     SqlNode key = sqlNodeList.get(0);
     SqlNode value = sqlNodeList.get(1);
-    return new SqlProperty((SqlCharStringLiteral) key, value,ZERO);
+    return new SqlProperty(key, value,ZERO);
   }
 
 
@@ -1530,6 +1524,585 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
 
     return new SqlTableColumn.SqlRegularColumn(ZERO, columnName, comment, dataType, constraint);
   }
+
+  @Override
+  protected SqlNode visitTableName(ASTNode node, ParseContext ctx) {
+    return visitChildren(node, ctx).get(0);
+  }
+
+
+  //test done
+  //ALTER TABLE old_table_name RENAME TO new_table_name
+  @Override
+  protected SqlNode visitAlterTableRename(ASTNode node, ParseContext ctx) {
+    SqlNode  new_name = visitChildren(node, ctx).get(0);
+     return new SqlAlterTableRename(ZERO, new_name);
+  }
+
+
+  //test done ALTER TABLE table_name SET TBLPROPERTIES ('comment' = 'New table comment','b'='c')
+  @Override
+  protected SqlNode visitAlterTableProperties(ASTNode node, ParseContext ctx) {
+    SqlNodeList  props = (SqlNodeList) visitChildren(node, ctx).get(0);
+    return  new SqlAlterTableSetProperties(ZERO, props);
+  }
+
+
+  //test done ALTER TABLE table_name SET SERDE 'org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe' WITH SERDEPROPERTIES ('serialization.format' = ',', 'field.delim' = ',')
+  @Override
+  protected SqlNode visitAlterTableSerializer(ASTNode node, ParseContext ctx) {
+    List<SqlNode> operands = visitChildren(node, ctx);
+
+    SqlNodeList  props = new SqlNodeList(operands, ZERO);
+    SqlNode serdeName = props.get(0);
+    SqlNodeList serde_properties =  SqlNodeList.EMPTY;
+    if (props.size() > 1) {
+      serde_properties  = (SqlNodeList) props.get(1);
+    }
+    return new SqlAlterTableSetSerde(ZERO,serdeName,serde_properties);
+  }
+
+  //test done ALTER TABLE table_name UNSET SERDEPROPERTIES ('field.delim')
+  @Override
+  protected SqlNode visitAlterTableUnsetSerdeProperties(ASTNode node, ParseContext ctx) {
+    List<SqlNode> operands =  visitChildren(node, ctx);
+    SqlNodeList  props = new SqlNodeList(operands, ZERO);
+    if (props.size() >1 ){
+      throw new UnsupportedOperationException("TOK_ALTERTABLE_UNSETSERDEPROPERTIES only supported one child in hive");
+    }
+    SqlNodeList serde_properties  = (SqlNodeList) props.get(0);
+    return  new SqlAlterTableUnsetSerdeProperties(ZERO, serde_properties);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableClusterSort(ASTNode node, ParseContext ctx) {
+    List<SqlNode> operands =  visitChildren(node, ctx);
+    SqlNodeList  props = new SqlNodeList(operands, ZERO);
+    return props;
+  }
+
+
+
+  //test done ALTER TABLE my_table NOT CLUSTERED
+  protected SqlNode visitNotClustered(ASTNode node, ParseContext ctx) {
+    return new SqlIdentifier("NOT CLUSTERED",ZERO);
+  }
+  //test done  ALTER TABLE my_table NOT SORTED
+  protected SqlNode visitNotSort(ASTNode node, ParseContext ctx) {
+    return new SqlIdentifier("NOT SORTED",ZERO);
+  }
+
+
+
+  /**
+   *
+   * └TOK_TABLESKEWED (1253)
+   *     ├TOK_TABCOLNAME (1232)
+   *     │   ├col1 (24)
+   *     │   └col2 (24)
+   *     ├TOK_TABCOLVALUE_PAIR (1235)
+   *     │   ├TOK_TABCOLVALUES (1234)
+   *     │   │   └TOK_TABCOLVALUE (1233)
+   *     │   │           ├'s1' (432)
+   *     │   │           └1 (420)
+   *     │   ├TOK_TABCOLVALUES (1234)
+   *     │   │   └TOK_TABCOLVALUE (1233)
+   *     │   │           ├'s3' (432)
+   *     │   │           └3 (420)
+   *     │   ├TOK_TABCOLVALUES (1234)
+   *     │   │   └TOK_TABCOLVALUE (1233)
+   *     │   │           ├'s13' (432)
+   *     │   │           └13 (420)
+   *     │   └TOK_TABCOLVALUES (1234)
+   *     │           └TOK_TABCOLVALUE (1233)
+   *     │               ├'s78' (432)
+   *     │               └78 (420)
+   *     └TOK_STOREDASDIRS (1217)
+   *
+   *
+   * TOK_TABLESKEWED (1253)
+   *   ├TOK_TABCOLNAME (1232)
+   *   │   └key (24)
+   *   ├TOK_TABCOLVALUE (1233)
+   *   │   ├1 (420)
+   *   │   ├5 (420)
+   *   │   └6 (420)
+   *   └TOK_STOREDASDIRS (1217)
+   * */
+  @Override
+  protected SqlNode visitAlterTableSkewed(ASTNode node, ParseContext ctx) {
+    List<SqlNode> operands =  visitChildren(node, ctx);
+
+    SqlNodeList  alter_table_buckets_childs = new SqlNodeList(operands, ZERO);
+
+    SqlNodeList  skewedCols = SqlNodeList.EMPTY;
+    SqlNode  skewedValues= null;
+    SqlNode  skewedValuePair = null;
+    SqlNode  storedAsDirs = null;
+    boolean  notSkewed = false;
+
+    if (!alter_table_buckets_childs.isEmpty()){
+      for (SqlNode  skwed_child :alter_table_buckets_childs) {
+        if (skwed_child instanceof SqlStoredAsDirs) {
+          storedAsDirs = skwed_child;
+        } else if (skwed_child instanceof SqlNodeList) {
+          for(SqlNode  table_skwed_child : (SqlNodeList) skwed_child){
+            if (table_skwed_child instanceof SqlStoredAsDirs) {
+              storedAsDirs = table_skwed_child;
+            } else if (table_skwed_child instanceof SqlTableColValuePair) {
+              skewedValuePair =  table_skwed_child;
+            } else if (table_skwed_child instanceof SqlValueTuple) {
+              skewedValues=table_skwed_child;
+            } else if (table_skwed_child instanceof SqlNodeList && ((SqlNodeList) table_skwed_child).get(0) instanceof SqlIdentifier) {
+              skewedCols = (SqlNodeList)table_skwed_child;
+            }
+          }
+        }
+      }
+    } else{
+      notSkewed = true;
+    }
+
+    return  new SqlAlterTableSetSkewed(ZERO, skewedCols, skewedValues, skewedValuePair, storedAsDirs,notSkewed);
+//    SqlNodeList  props = (SqlNodeList) visitChildren(node, ctx);
+//    ASTNode table_skwed_child = (ASTNode) node.getChild(0);
+//
+//    if (child.getChildCount() == 1 && child.getChild(0).getType() ==HiveParser.TOK_STOREDASDIRS) {
+//      atOptions.storedAsDirs = true;
+//    } else if (child.getChildCount() == 0) {
+//      atOptions.operation = AlterTableOperation.NOT_SKEWED;
+//    } else if (child.getChild(0).getType() == HiveParser.TOK_TABLESKEWED) {
+//      ASTNode skewedNode = (ASTNode) child.getChild(0);
+//
+//      // Process skewed columns
+//      ASTNode colNameNode = (ASTNode) skewedNode.getChild(0);
+//      List<SqlNode> skewedCols = new ArrayList<>();
+//      for (int j = 0; j < colNameNode.getChildCount(); j++) {
+//        skewedCols.add(new SqlIdentifier(colNameNode.getChild(j).getText(), SqlParserPos.ZERO));
+//      }
+//      atOptions.skewedCols = new SqlNodeList(skewedCols, SqlParserPos.ZERO);
+//
+//      // Process skewed values
+//      ASTNode colValueNode = (ASTNode) skewedNode.getChild(1);
+//      List<SqlNode> skewedValues = new ArrayList<>();
+//
+//      if (colValueNode.getType() == HiveParser.TOK_TABCOLVALUE) {
+//        atOptions.skewedColsValuePair=false;
+//        // Single column skewed values
+//        for (int j = 0; j < colValueNode.getChildCount(); j++) {
+//          ASTNode valueNode = (ASTNode) colValueNode.getChild(j);
+//          SqlNode value = createSqlLiteral(valueNode);
+//          skewedValues.add(value);
+//        }
+//      } else if (colValueNode.getType() == HiveParser.TOK_TABCOLVALUE_PAIR) {
+//        atOptions.skewedColsValuePair=true;
+//        // Multi-column skewed values
+//        for (int j = 0; j < colValueNode.getChildCount(); j++) {
+//          ASTNode tupleNode = (ASTNode) colValueNode.getChild(j).getChild(0);
+//          List<SqlNode> tupleValues = new ArrayList<>();
+//          for (int k = 0; k < tupleNode.getChildCount(); k++) {
+//            ASTNode valueNode = (ASTNode) tupleNode.getChild(k);
+//            SqlNode value = createSqlLiteral(valueNode);
+//            tupleValues.add(value);
+//          }
+//          skewedValues.add(new SqlValueTuple(SqlParserPos.ZERO, tupleValues.toArray(new SqlNode[0])));
+//        }
+//      }
+//      atOptions.skewedValues = new SqlNodeList(skewedValues, SqlParserPos.ZERO);
+//
+//      // Check if STORED AS DIRECTORIES is present
+//      atOptions.storedAsDirs = skewedNode.getChildCount() > 2;
+//    }
+  }
+
+  protected SqlNodeList visitTableSkewed(ASTNode node, ParseContext ctx) {
+    List<SqlNode> operands =  visitChildren(node, ctx);
+    return new SqlNodeList(operands, ZERO);
+  }
+
+
+  @Override
+  protected SqlNode visitStoredAsDirs(ASTNode node, ParseContext ctx) {
+    return new SqlStoredAsDirs("Stored As Dirs",ZERO);
+  }
+
+  @Override
+  protected SqlNode visitTabColValues(ASTNode node, ParseContext ctx) {
+      return (SqlNodeList) visitChildren(node, ctx);
+  }
+
+  @Override
+  protected SqlNode visitTabColValue(ASTNode node, ParseContext ctx) {
+    List<SqlNode> operands =  visitChildren(node, ctx);
+    SqlNodeList  values = new SqlNodeList(operands, ZERO);
+    return new SqlValueTuple(ZERO, values);
+  }
+
+  @Override
+  protected SqlNode visitTabColValuePair(ASTNode node, ParseContext ctx) {
+    SqlNodeList  value_pairs = (SqlNodeList) visitChildren(node, ctx);
+    return new SqlTableColValuePair(ZERO, value_pairs);
+  }
+
+  /*├TOK_ALTERTABLE_BUCKETS (852)
+    │   │   ├TOK_TABCOLNAME (1232)
+    │   │   │   └id (24)
+    │   │   ├TOK_TABCOLNAME (1232)
+    │   │   │   └TOK_TABSORTCOLNAMEASC (1260)
+    │   │   │       └TOK_NULLS_FIRST (1086)
+    │   │   │           └name (24)
+    │   │   └16 (420)
+    */
+  @Override
+  protected SqlNode visitAlterTableBuckets(ASTNode node, ParseContext ctx) {
+    List<SqlNode> operands =  visitChildren(node, ctx);
+    SqlNodeList  alter_table_buckets_childs = new SqlNodeList(operands, ZERO);
+    SqlNodeList  clusterByList = SqlNodeList.EMPTY;
+    SqlNodeList  sortedByList= SqlNodeList.EMPTY;;
+    SqlNode  bucketNum= null;
+
+
+    for (SqlNode  bucket_child :alter_table_buckets_childs) {
+      if (bucket_child instanceof SqlNodeList && ((SqlNodeList) bucket_child).get(0) instanceof SqlIdentifier) {
+        clusterByList= (SqlNodeList) bucket_child;
+      } else if (bucket_child instanceof SqlNumericLiteral) {
+        bucketNum =  bucket_child;
+      } else if (bucket_child instanceof SqlNodeList && ((SqlNodeList) bucket_child).get(0) instanceof SqlBasicCall) {
+        sortedByList = (SqlNodeList) bucket_child;
+      }
+    }
+
+    return  new SqlAlterTableBuckets(ZERO, clusterByList,sortedByList,bucketNum);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableAddParts(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableDropParts(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitPartSpec(ASTNode node, ParseContext ctx) {
+    List<SqlNode> operands =  visitChildren(node, ctx);
+    SqlNodeList  props = new SqlNodeList(operands, ZERO);
+    return new SqlAlterPartition(ZERO,props);
+  }
+
+  @Override
+  protected SqlNode visitIfExists(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitPurge(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableRenamePart(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableExchangePartition(ASTNode node, ParseContext ctx) {
+    // Method content
+      return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitTableColName(ASTNode node, ParseContext ctx) {
+    List<SqlNode> operands =  visitChildren(node, ctx);
+    return new SqlNodeList(operands, ZERO);
+  }
+
+  //todo
+  @Override
+  protected SqlNode visitAlterTableArchive(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableUnarchive(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableFileFormat(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterPartitionFileFormat(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterPartitionLocation(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableLocation(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableTouch(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableCompact(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterPartitionMergeFiles(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableMergeFiles(ASTNode node, ParseContext ctx) {
+    return visitChildren(node, ctx).get(0);
+    // Method content
+  }
+
+  @Override
+  protected SqlNode visitAlterTableUpdateColumns(ASTNode node, ParseContext ctx) {
+    return visitChildren(node, ctx).get(0);
+    // Method content
+  }
+
+  @Override
+  protected SqlNode visitAlterTableRenameCol(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableChangeColAfterPosition(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableAddCols(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableReplaceCols(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableAddConstraint(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableDropConstraint(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableUpdateColStats(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableUpdateStats(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableDropProperties(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableSkewedLocation(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+
+
+  @Override
+  protected SqlNode visitAlterTableOwner(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableSetPartSpec(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableConvert(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableExecute(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableDropBranch(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableCreateBranch(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableDropTag(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableCreateTag(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterPartitionUpdateStats(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterPartitionSerializer(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterPartitionSetSerdeProperties(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTableSetSerdeProperties(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterPartitionUnsetSerdeProperties(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitSkewedLocations(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitSkewedLocationList(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitSkewedLocationMap(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterPartitionBuckets(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitBlocking(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitCompactPool(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitRollback(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterPartitionUpdateColStats(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterTablePartColType(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterDatabaseOwner(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterDatabaseLocation(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
+  @Override
+  protected SqlNode visitAlterDatabaseManagedLocation(ASTNode node, ParseContext ctx) {
+    // Method content
+    return visitChildren(node, ctx).get(0);
+  }
+
 
 
   @Override
@@ -1749,101 +2322,41 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
 
   @Override
   protected SqlNode visitAlterTable(ASTNode node, ParseContext ctx) {
-    AlterTableOptions atOptions = new AlterTableOptions();
-    atOptions.tableName = (SqlIdentifier) visit((ASTNode) node.getChild(0), ctx);
+    List<SqlNode> operands = visitChildren(node, ctx);
+//    SqlNodeList operands = (SqlNodeList) visitChildren(node, ctx);
+    return new SqlAlterTable(ZERO, new SqlNodeList(operands, ZERO));
 
-    for (int i = 1; i < node.getChildCount(); i++) {
+
+//    /ADDDl/
+   /* for (int i = 1; i < node.getChildCount(); i++) {
       ASTNode child = (ASTNode) node.getChild(i);
       switch (child.getType()) {
         case HiveParser.TOK_ALTERTABLE_RENAME:
-          atOptions.operation = AlterTableOperation.RENAME;
-          atOptions.newTableName = (SqlIdentifier) visit((ASTNode) child.getChild(0), ctx);
-          break;
+//          atOptions.operation = AlterTableOperation.RENAME;
+//          atOptions.newTableName = (SqlIdentifier) visit((ASTNode) child.getChild(0), ctx);
+//          break;
         case HiveParser.TOK_ALTERTABLE_PROPERTIES:
-          atOptions.operation = AlterTableOperation.SET_PROPERTIES;
-          atOptions.properties = (SqlNodeList) visit(child, ctx);
-          break;
+//          atOptions.operation = AlterTableOperation.SET_PROPERTIES;
+//          atOptions.properties = (SqlNodeList) visit(child, ctx);
+//          break;
         case HiveParser.TOK_ALTERTABLE_SERIALIZER:
-          atOptions.operation = AlterTableOperation.SET_SERDE;
-          atOptions.serdeName = visit((ASTNode) child.getChild(0), ctx);
-          if (child.getChildCount() > 1) {
-            atOptions.serdeProperties = (SqlNodeList) visit((ASTNode) child.getChild(1), ctx);
-          }
+//          atOptions.operation = AlterTableOperation.SET_SERDE;
+//          atOptions.serdeName = visit((ASTNode) child.getChild(0), ctx);
+//          if (child.getChildCount() > 1) {
+//            atOptions.serdeProperties = (SqlNodeList) visit((ASTNode) child.getChild(1), ctx);
+//          }
           break;
         case HiveParser.TOK_ALTERTABLE_UNSETSERDEPROPERTIES:
-          atOptions.operation = AlterTableOperation.UNSET_SERDE_PROPERTIES;
-          atOptions.serdeProperties = (SqlNodeList) visit((ASTNode) child.getChild(0), ctx);
-          break;
+//          atOptions.operation = AlterTableOperation.UNSET_SERDE_PROPERTIES;
+//          atOptions.serdeProperties = (SqlNodeList) visit((ASTNode) child.getChild(0), ctx);
+//          break;
         case HiveParser.TOK_ALTERTABLE_CLUSTER_SORT:
-          atOptions.operation = AlterTableOperation.CLUSTER_SORT;
-          ASTNode cluster_sort_child = (ASTNode) child.getChild(0);
-          if (cluster_sort_child.getType() == HiveParser.TOK_NOT_CLUSTERED) {
-            atOptions.not_clusterd = true;
-          } else if (cluster_sort_child.getType() == HiveParser.TOK_NOT_SORTED) {
-            atOptions.not_sorted = true;
-          } else {
-            for (Node bucket_child : cluster_sort_child.getChildren()) {
-              ASTNode ast = (ASTNode) bucket_child;
-              if (ast.getType() == HiveParser.TOK_TABCOLNAME && ((ASTNode) ast.getChildren().get(0)).getType() == HiveParser.Identifier) {
-                atOptions.clusterCols = new SqlNodeList(visitChildren(ast, ctx), ZERO);
-              } else if (ast.getType() == HiveParser.TOK_TABCOLNAME && ((ASTNode) ast.getChildren().get(0)).getType() == HiveParser.TOK_TABSORTCOLNAMEASC) {
-                atOptions.sortCols = new SqlNodeList(visitChildren(ast, ctx), ZERO);
-              } else if (ast.getType() == HiveParser.Number) {
-                atOptions.buckets = visit(ast, ctx);
-              }
-            }
-          }
-          break;
+//
+//          break;
 
         case HiveParser.TOK_ALTERTABLE_SKEWED:
           atOptions.operation = AlterTableOperation.SKEWED;
 
-          if (child.getChildCount() == 1 && child.getChild(0).getType() ==HiveParser.TOK_STOREDASDIRS) {
-            atOptions.storedAsDirs = true;
-          } else if (child.getChildCount() == 0) {
-            atOptions.operation = AlterTableOperation.NOT_SKEWED;
-          } else if (child.getChild(0).getType() == HiveParser.TOK_TABLESKEWED) {
-            ASTNode skewedNode = (ASTNode) child.getChild(0);
-
-            // Process skewed columns
-            ASTNode colNameNode = (ASTNode) skewedNode.getChild(0);
-            List<SqlNode> skewedCols = new ArrayList<>();
-            for (int j = 0; j < colNameNode.getChildCount(); j++) {
-              skewedCols.add(new SqlIdentifier(colNameNode.getChild(j).getText(), SqlParserPos.ZERO));
-            }
-            atOptions.skewedCols = new SqlNodeList(skewedCols, SqlParserPos.ZERO);
-
-            // Process skewed values
-            ASTNode colValueNode = (ASTNode) skewedNode.getChild(1);
-            List<SqlNode> skewedValues = new ArrayList<>();
-
-            if (colValueNode.getType() == HiveParser.TOK_TABCOLVALUE) {
-              atOptions.skewedColsValuePair=false;
-              // Single column skewed values
-              for (int j = 0; j < colValueNode.getChildCount(); j++) {
-                ASTNode valueNode = (ASTNode) colValueNode.getChild(j);
-                SqlNode value = createSqlLiteral(valueNode);
-                skewedValues.add(value);
-              }
-            } else if (colValueNode.getType() == HiveParser.TOK_TABCOLVALUE_PAIR) {
-              atOptions.skewedColsValuePair=true;
-              // Multi-column skewed values
-              for (int j = 0; j < colValueNode.getChildCount(); j++) {
-                ASTNode tupleNode = (ASTNode) colValueNode.getChild(j).getChild(0);
-                List<SqlNode> tupleValues = new ArrayList<>();
-                for (int k = 0; k < tupleNode.getChildCount(); k++) {
-                  ASTNode valueNode = (ASTNode) tupleNode.getChild(k);
-                  SqlNode value = createSqlLiteral(valueNode);
-                  tupleValues.add(value);
-                }
-                skewedValues.add(new SqlValueTuple(SqlParserPos.ZERO, tupleValues.toArray(new SqlNode[0])));
-              }
-            }
-            atOptions.skewedValues = new SqlNodeList(skewedValues, SqlParserPos.ZERO);
-
-            // Check if STORED AS DIRECTORIES is present
-            atOptions.storedAsDirs = skewedNode.getChildCount() > 2;
-          }
           break;
         case HiveParser.TOK_ALTERTABLE_ADDPARTS:
           atOptions.ifNotExists=false;
@@ -1860,56 +2373,157 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
           }
           atOptions.ifNotExists = child.getChild(0).getType() == HiveParser.TOK_IFNOTEXISTS;
           break;
-        //todo
+
         case HiveParser.TOK_ALTERTABLE_DROPPARTS:
-          atOptions.operation = AlterTableOperation.DROP_PARTITION;
-          atOptions.ifExists = child.getChild(0).getType() == HiveParser.TOK_IFEXISTS;
-          atOptions.partitionSpec = visit((ASTNode) child.getChild(atOptions.ifExists ? 1 : 0), ctx);
-          atOptions.purge = child.getChildCount() > (atOptions.ifExists ? 2 : 1) &&
-                  child.getChild(child.getChildCount() - 1).getType() == HiveParser.KW_PURGE;
+          atOptions.operation = SqlAlterTable.AlterTableOperation.DROP_PARTITION;
+          atOptions.ifExists = false;
+          atOptions.purge = false;
+          SqlNodeList partitionSpecs = new SqlNodeList(SqlParserPos.ZERO);
+
+          for (Node child_node : child.getChildren()) {
+            ASTNode ast = (ASTNode) child_node;
+            switch (ast.getType()) {
+              case HiveParser.TOK_PARTSPEC:
+                SqlNode partSpec = visit(ast, ctx);
+                partitionSpecs.add(partSpec);
+                break;
+              case HiveParser.TOK_IFEXISTS:
+                atOptions.ifExists = true;
+                break;
+              case HiveParser.KW_PURGE:
+                atOptions.purge = true;
+                break;
+            }
+          }
+          atOptions.partitionSpecs = partitionSpecs;
           break;
         case HiveParser.TOK_ALTERTABLE_RENAMEPART:
           atOptions.operation = AlterTableOperation.RENAME_PARTITION;
-          atOptions.oldPartitionSpec = visit((ASTNode) child.getChild(0), ctx);
-          atOptions.newPartitionSpec = visit((ASTNode) child.getChild(1), ctx);
+          // 处理子节点
+          for (int j = 0; j < child.getChildCount(); j++) {
+            ASTNode ast = (ASTNode) child.getChild(j);
+            if (ast.getType() == HiveParser.TOK_PARTSPEC) {
+              SqlNode partSpec = visit(ast, ctx);
+              if (j == 0) {
+                // only one partspec allowed in hive part rename
+                atOptions.newPartitionSpec = partSpec;
+              } else {
+                throw new UnsupportedOperationException("Unsupported ALTER TABLE operation: " + child.getText());
+              }
+            }
+          }
+
           break;
+
         case HiveParser.TOK_ALTERTABLE_EXCHANGEPARTITION:
           atOptions.operation = AlterTableOperation.EXCHANGE_PARTITION;
-          atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
-          atOptions.sourceTable = (SqlIdentifier) visit((ASTNode) child.getChild(1), ctx);
+          for (Node exchange_node : child.getChildren()) {
+            ASTNode ast = (ASTNode) exchange_node;
+            switch (ast.getType()) {
+              case HiveParser.TOK_PARTSPEC:
+                atOptions.partitionSpec = visit(ast, ctx);
+                break;
+              case HiveParser.TOK_TABNAME:
+                atOptions.sourceTable = (SqlIdentifier) visit(ast, ctx);
+                break;
+            }
+          }
           break;
         case HiveParser.TOK_ALTERTABLE_ARCHIVE:
           atOptions.operation = AlterTableOperation.ARCHIVE_PARTITION;
-          atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
+          SqlNodeList archive_partitionSpecs = new SqlNodeList(SqlParserPos.ZERO);
+
+          for (Node child_node : child.getChildren()) {
+            ASTNode ast = (ASTNode) child_node;
+            if (ast.getType() == HiveParser.TOK_PARTSPEC) {
+              SqlNode partSpec = visit(ast, ctx);
+              archive_partitionSpecs.add(partSpec);
+            }
+          }
+
+          atOptions.partitionSpec = archive_partitionSpecs;
           break;
         case HiveParser.TOK_ALTERTABLE_UNARCHIVE:
           atOptions.operation = AlterTableOperation.UNARCHIVE_PARTITION;
-          atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
+          SqlNodeList unarchive_partitionSpecs = new SqlNodeList(SqlParserPos.ZERO);
+
+          for (Node child_node : child.getChildren()) {
+            ASTNode ast = (ASTNode) child_node;
+            if (ast.getType() == HiveParser.TOK_PARTSPEC) {
+              SqlNode partSpec = visit(ast, ctx);
+              unarchive_partitionSpecs.add(partSpec);
+            }
+          }
+
+          atOptions.partitionSpec = unarchive_partitionSpecs;
           break;
         case HiveParser.TOK_ALTERTABLE_FILEFORMAT:
           atOptions.operation = AlterTableOperation.SET_FILE_FORMAT;
-          if (child.getChildCount() > 1) {
-            atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
-            atOptions.fileFormat = visit((ASTNode) child.getChild(1), ctx);
-          } else {
-            atOptions.fileFormat = visit((ASTNode) child.getChild(0), ctx);
+          for (Node child_node : child.getChildren()) {
+            ASTNode ast = (ASTNode) child_node;
+            if (ast.getType() == HiveParser.TOK_FILEFORMAT_GENERIC) {
+              atOptions.fileFormat = visit(child, ctx);
+            }else if(ast.getType() == HiveParser.TOK_TABLEFILEFORMAT){
+              List<SqlNode> formats =  visitChildren(child, ctx);
+              atOptions.inputFmt=(SqlCharStringLiteral) formats.get(0);
+              atOptions.outFmt=(SqlCharStringLiteral) formats.get(1);
+              atOptions.serdeCls=(SqlCharStringLiteral) formats.get(2);
+              if (formats.size()==5){
+                atOptions.inDriver=(SqlCharStringLiteral) formats.get(3);
+                atOptions.outDriver=(SqlCharStringLiteral) formats.get(4);
+              }else {
+                throw new UnsupportedOperationException("Unsupported ALTER TABLE operation: " + child.getText());
+              }
+            }
           }
+          break;
+        case HiveParser.TOK_ALTERPARTITION_FILEFORMAT:
+          atOptions.operation = AlterTableOperation.SET_PARTITION_FILE_FORMAT;
+          for (Node child_node : child.getChildren()) {
+            ASTNode ast = (ASTNode) child_node;
+            if (ast.getType() == HiveParser.TOK_FILEFORMAT_GENERIC) {
+              atOptions.fileFormat = visit(child, ctx);
+            }else if(ast.getType() == HiveParser.TOK_TABLEFILEFORMAT){
+              List<SqlNode> formats =  visitChildren(child, ctx);
+              atOptions.inputFmt=(SqlCharStringLiteral) formats.get(0);
+              atOptions.outFmt=(SqlCharStringLiteral) formats.get(1);
+              atOptions.serdeCls=(SqlCharStringLiteral) formats.get(2);
+              if (formats.size()==5){
+                atOptions.inDriver=(SqlCharStringLiteral) formats.get(3);
+                atOptions.outDriver=(SqlCharStringLiteral) formats.get(4);
+              }else {
+                throw new UnsupportedOperationException("Unsupported ALTER TABLE operation: " + child.getText());
+              }
+            }
+          }
+          break;
+
+        case HiveParser.TOK_PARTSPEC:
+          atOptions.partitionSpec = visit(child, ctx);
+        case HiveParser.TOK_ALTERPARTITION_LOCATION:
+          atOptions.operation = AlterTableOperation.SET_PARTITION_LOCATION;
+          atOptions.location = visit((ASTNode) child.getChild(0), ctx);
           break;
         case HiveParser.TOK_ALTERTABLE_LOCATION:
           atOptions.operation = AlterTableOperation.SET_LOCATION;
-          if (child.getChildCount() > 1) {
-            atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
-            atOptions.location = visit((ASTNode) child.getChild(1), ctx);
-          } else {
-            atOptions.location = visit((ASTNode) child.getChild(0), ctx);
-          }
+          atOptions.location = visit((ASTNode) child.getChild(0), ctx);
           break;
         case HiveParser.TOK_ALTERTABLE_TOUCH:
           atOptions.operation = AlterTableOperation.TOUCH;
+
           if (child.getChildCount() > 0) {
-            atOptions.partitionSpec = visit((ASTNode) child.getChild(0), ctx);
+            SqlNodeList touch_partitionSpecs = new SqlNodeList(SqlParserPos.ZERO);
+            for (Node child_node : child.getChildren()) {
+              ASTNode ast = (ASTNode) child_node;
+              if (ast.getType() == HiveParser.TOK_PARTSPEC) {
+                SqlNode partSpec = visit(ast, ctx);
+                touch_partitionSpecs.add(partSpec);
+              }
+            }
+            atOptions.partitionSpecs = touch_partitionSpecs;
           }
           break;
+        //todo
         case HiveParser.TOK_ALTERTABLE_COMPACT:
           atOptions.operation = AlterTableOperation.COMPACT;
           atOptions.compactionType = visit((ASTNode) child.getChild(0), ctx);
@@ -1917,6 +2531,8 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
             atOptions.compactionProps = (SqlNodeList) visit((ASTNode) child.getChild(1), ctx);
           }
           break;
+        case HiveParser.TOK_ALTERPARTITION_MERGEFILES:
+
         case HiveParser.TOK_ALTERTABLE_MERGEFILES:
           atOptions.operation = AlterTableOperation.MERGE_FILES;
           if (child.getChildCount() > 0) {
@@ -2011,20 +2627,30 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
           atOptions.operation = AlterTableOperation.CREATE_TAG;
           atOptions.tagName = (SqlIdentifier) visit((ASTNode) child.getChild(0), ctx);
           break;
+
+
+        case HiveParser.TOK_ALTERPARTITION_UPDATESTATS:
+        case HiveParser.TOK_ALTERPARTITION_SERIALIZER:
+        case HiveParser.TOK_ALTERPARTITION_SETSERDEPROPERTIES:
+        case HiveParser.TOK_ALTERTABLE_SETSERDEPROPERTIES:
+        case HiveParser.TOK_ALTERPARTITION_UNSETSERDEPROPERTIES:
+        case HiveParser.TOK_SKEWED_LOCATIONS:
+        case HiveParser.TOK_SKEWED_LOCATION_LIST:
+        case HiveParser.TOK_SKEWED_LOCATION_MAP:
+        case HiveParser.TOK_ALTERPARTITION_BUCKETS:
+        case HiveParser.TOK_BLOCKING:
+        case HiveParser.TOK_COMPACT_POOL:
+        case HiveParser.KW_ROLLBACK:
+        case HiveParser.TOK_ALTERPARTITION_UPDATECOLSTATS:
+        case HiveParser.TOK_ALTERTABLE_PARTCOLTYPE:
+        case HiveParser.TOK_ALTERDATABASE_OWNER:
+        case HiveParser.TOK_ALTERDATABASE_LOCATION:
+        case HiveParser.TOK_ALTERDATABASE_MANAGEDLOCATION:
+
         default:
           throw new UnsupportedOperationException("Unsupported ALTER TABLE operation: " + child.getText());
       }
-    }
-
-    return new SqlAlterTable(
-            ZERO,
-            atOptions.tableName,
-            atOptions.operation,
-            atOptions.newTableName, atOptions.properties, atOptions.serdeName, atOptions.serdeProperties, atOptions.clusterCols, atOptions.sortCols, atOptions.buckets, atOptions.skewedCols, atOptions.skewedValues,
-            atOptions.storedAsDirs, atOptions.partitionSpec, atOptions.oldPartitionSpec, atOptions.newPartitionSpec, atOptions.branchName, atOptions.ifExists, atOptions.ifNotExists, atOptions.purge, atOptions.sourceTable,
-            atOptions.fileFormat, atOptions.compactionType, atOptions.compactionProps, atOptions.oldColName, atOptions.newColName, atOptions.newColType, atOptions.colComment, atOptions.afterCol, atOptions.newColumns,
-            atOptions.constraintName, atOptions.columnStats, atOptions.tableStats, atOptions.dropProperties, atOptions.skewedLocations, atOptions.newOwner, atOptions.convertType, atOptions.executeStatement, atOptions.branchName,
-            atOptions.tagName);
+    }*/
   }
 
   private List<SqlNode> buildOperandList(AlterTableOptions options) {
@@ -2267,6 +2893,7 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     SqlNodeList skewedValues;
     boolean storedAsDirs;
     SqlNode partitionSpec;
+    SqlNodeList partitionSpecs;
     SqlNode oldPartitionSpec;
     SqlNode newPartitionSpec;
     SqlNode location;
@@ -2275,6 +2902,11 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     boolean purge;
     SqlIdentifier sourceTable;
     SqlNode fileFormat;
+    SqlCharStringLiteral inputFmt;
+    SqlCharStringLiteral outFmt;
+    SqlCharStringLiteral serdeCls;
+    SqlCharStringLiteral inDriver;
+    SqlCharStringLiteral outDriver;
     SqlNode compactionType;
     SqlNodeList compactionProps;
     SqlIdentifier oldColName;
