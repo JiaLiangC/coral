@@ -108,7 +108,7 @@ public class SqlTransformationApplication {
         String dropdatabase2  = "DROP DATABASE IF EXISTS `data-science_projects.2024`";
 
         String alter0 =  "ALTER TABLE table_name CHANGE COLUMN old_col_name new_col_name INT COMMENT 'New column comment' AFTER existing_column CASCADE";
-        String alter3 = "ALTER TABLE list_bucket_single  SKEWED BY (key) ON (1,5,6) STORED AS DIRECTORIES";
+        String alter3 = "ALTER TABLE table_name SKEWED BY (col1, col2)    ON ((1,1), (2,2)) STORED AS DIRECTORIES";
         String alter4 = "ALTER TABLE list_bucket_single  SKEWED BY (key) ON (1,5,6) STORED AS DIRECTORIES";
 
 

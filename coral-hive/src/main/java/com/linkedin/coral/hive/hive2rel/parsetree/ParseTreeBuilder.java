@@ -1629,6 +1629,9 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
    *   │   └6 (420)
    *   └TOK_STOREDASDIRS (1217)
    * */
+  //test done ALTER TABLE list_bucket_multiple SKEWED BY (col1, col2) ON (('s1',1), ('s3',3), ('s13',13), ('s78',78)) STORED AS DIRECTORIES
+  //test done ALTER TABLE list_bucket_single  SKEWED BY (key) ON (1,5,6) STORED AS DIRECTORIES
+  //test done ALTER TABLE table_name SKEWED BY (col1, col2)    ON ((1,1), (2,2)) STORED AS DIRECTORIES
   @Override
   protected SqlNode visitAlterTableSkewed(ASTNode node, ParseContext ctx) {
     List<SqlNode> operands =  visitChildren(node, ctx);
@@ -1728,7 +1731,8 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
 
   @Override
   protected SqlNode visitTabColValues(ASTNode node, ParseContext ctx) {
-      return (SqlNodeList) visitChildren(node, ctx);
+    List<SqlNode> operands =  visitChildren(node, ctx);
+    return new SqlNodeList(operands, ZERO);
   }
 
   @Override
@@ -1738,9 +1742,12 @@ public class ParseTreeBuilder extends AbstractASTVisitor<SqlNode, ParseTreeBuild
     return new SqlValueTuple(ZERO, values);
   }
 
+  //test done ALTER TABLE list_bucket_multiple SKEWED BY (col1, col2) ON (('s1',1), ('s3',3), ('s13',13), ('s78',78)) STORED AS DIRECTORIES
   @Override
   protected SqlNode visitTabColValuePair(ASTNode node, ParseContext ctx) {
-    SqlNodeList  value_pairs = (SqlNodeList) visitChildren(node, ctx);
+    List<SqlNode> operands =  visitChildren(node, ctx);
+    SqlNodeList  value_pairs = new SqlNodeList(operands, ZERO);
+
     return new SqlTableColValuePair(ZERO, value_pairs);
   }
 
